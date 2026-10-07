@@ -22,6 +22,25 @@ import {
   MessageSquare,
 } from 'lucide-react';
 
+function getEmbedVideoUrl(url) {
+  if (!url) return null;
+  // If already an embed URL:
+  if (url.includes('youtube.com/embed/')) {
+    return url;
+  }
+  // Standard YouTube formats: watch?v=ID or youtu.be/ID or youtube.com/v/ID
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|v\/|embed\/))([\w-]{11})/);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  }
+  // Vimeo
+  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+  return null;
+}
+
 export default function CoursePlayer() {
   const { courseId } = useParams();
   const { user } = useAuth();
@@ -232,6 +251,8 @@ export default function CoursePlayer() {
   const isCurrentLessonCompleted =
     activeLesson && progressData.completedLessonIds.includes(activeLesson._id.toString());
 
+  const embedUrl = activeLesson ? getEmbedVideoUrl(activeLesson.videoUrl) : null;
+
   return (
     <div className="min-h-[90vh] bg-slate-900 text-slate-100 flex flex-col">
       {/* Top Bar */}
@@ -337,14 +358,25 @@ export default function CoursePlayer() {
                   </div>
                 )}
 
-                {/* Video Container */}
+                {/* Video Container - Supports both YouTube/Vimeo embeds and direct MP4 streams */}
                 <div className="aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-slate-800 relative">
-                  <video
-                    key={activeLesson._id}
-                    src={activeLesson.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
-                    controls
-                    className="w-full h-full"
-                  />
+                  {embedUrl ? (
+                    <iframe
+                      key={activeLesson._id || activeLesson.id}
+                      src={embedUrl}
+                      title={activeLesson.title}
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      key={activeLesson._id || activeLesson.id}
+                      src={activeLesson.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
+                      controls
+                      className="w-full h-full"
+                    />
+                  )}
                 </div>
 
                 {/* Title & Complete Action Button */}

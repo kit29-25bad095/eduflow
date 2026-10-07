@@ -22,6 +22,22 @@ import {
   Zap,
 } from 'lucide-react';
 
+function getEmbedVideoUrl(url) {
+  if (!url) return null;
+  if (url.includes('youtube.com/embed/')) {
+    return url;
+  }
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|v\/|embed\/))([\w-]{11})/);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  }
+  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+  return null;
+}
+
 export default function CourseDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -832,12 +848,22 @@ export default function CourseDetails() {
               </button>
             </div>
             <div className="aspect-video bg-black">
-              <video
-                src={activePreviewLesson.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
-                controls
-                autoPlay
-                className="w-full h-full"
-              />
+              {getEmbedVideoUrl(activePreviewLesson.videoUrl) ? (
+                <iframe
+                  src={getEmbedVideoUrl(activePreviewLesson.videoUrl)}
+                  title={activePreviewLesson.title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={activePreviewLesson.videoUrl || 'https://www.w3schools.com/html/mov_bbb.mp4'}
+                  controls
+                  autoPlay
+                  className="w-full h-full"
+                />
+              )}
             </div>
             <div className="p-5 space-y-2">
               <p className="text-xs text-slate-600 leading-relaxed">
