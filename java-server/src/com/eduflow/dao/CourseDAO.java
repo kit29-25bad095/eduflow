@@ -179,6 +179,7 @@ public class CourseDAO {
                                 l.setDuration(rsLes.getInt("duration"));
                                 l.setOrder(rsLes.getInt("order_num"));
                                 l.setPreview(rsLes.getInt("is_preview") == 1);
+                                try { l.setResources(rsLes.getString("resources")); } catch (Exception ignored) {}
                                 lessons.add(l);
                             }
                         }

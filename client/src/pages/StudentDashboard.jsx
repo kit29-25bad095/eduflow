@@ -13,6 +13,8 @@ import {
   ArrowRight,
   Loader2,
   Calendar,
+  Heart,
+  Sparkles,
 } from 'lucide-react';
 import {
   BarChart,
@@ -27,14 +29,22 @@ import {
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [analytics, setAnalytics] = useState(null);
+  const [wishlist, setWishlist] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/analytics/student');
-        if (res.data.success) {
-          setAnalytics(res.data.data);
+        const [analyticsRes, wishlistRes] = await Promise.all([
+          api.get('/analytics/student').catch(() => ({ data: { data: null } })),
+          api.get('/wishlist').catch(() => ({ data: { data: [] } })),
+        ]);
+
+        if (analyticsRes.data?.success) {
+          setAnalytics(analyticsRes.data.data);
+        }
+        if (wishlistRes.data?.success && Array.isArray(wishlistRes.data.data)) {
+          setWishlist(wishlistRes.data.data);
         }
       } catch (err) {
         console.error('Failed to load student dashboard metrics:', err);
@@ -43,7 +53,7 @@ export default function StudentDashboard() {
       }
     };
 
-    fetchAnalytics();
+    fetchData();
   }, []);
 
   if (isLoading) {
@@ -237,6 +247,80 @@ export default function StudentDashboard() {
           )}
         </div>
       </div>
+
+      {/* Saved in Wishlist */}
+      {wishlist.length > 0 && (
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+                Saved in Wishlist
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Courses you've bookmarked to enroll in next
+              </p>
+            </div>
+            <Link
+              to="/courses"
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+            >
+              Explore Catalog <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {wishlist.map((course) => (
+              <div
+                key={course.id || course._id}
+                className="group border border-slate-200/90 hover:border-indigo-300 rounded-2xl overflow-hidden bg-white hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="relative aspect-video w-full bg-slate-100 overflow-hidden">
+                    <img
+                      src={
+                        course.thumbnail ||
+                        'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80'
+                      }
+                      alt={course.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[10px] font-bold bg-white/90 text-slate-700 backdrop-blur-sm">
+                      {course.category}
+                    </span>
+                  </div>
+
+                  <div className="p-4 space-y-2">
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                      {course.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 line-clamp-2">
+                      {course.description}
+                    </p>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-500 pt-1">
+                      <span className="font-semibold text-slate-700 capitalize">{course.level || 'All levels'}</span>
+                      <span>•</span>
+                      <span className="font-bold text-emerald-600">
+                        {course.price > 0 ? `$${course.price}` : 'Free'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 pt-0">
+                  <Link
+                    to={`/courses/${course.id || course._id}`}
+                    className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    View Course
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

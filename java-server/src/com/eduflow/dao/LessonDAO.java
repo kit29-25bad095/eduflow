@@ -53,6 +53,7 @@ public class LessonDAO {
                     l.setDescription(rs.getString("description"));
                     l.setContent(rs.getString("content"));
                     l.setOrder(rs.getInt("order_num"));
+                    try { l.setResources(rs.getString("resources")); } catch (Exception ignored) {}
                     return l;
                 }
             }

@@ -23,6 +23,8 @@ import {
   AlertCircle,
   ShieldCheck,
   Star,
+  Heart,
+  HelpCircle,
 } from 'lucide-react';
 
 const DEGREE_OPTIONS = [
@@ -93,6 +95,22 @@ export default function StudentProfile() {
   const [customGoal, setCustomGoal] = useState('');
   const [profileImage, setProfileImage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [wishlist, setWishlist] = useState([]);
+
+  const handleRemoveWishlist = async (courseId) => {
+    try {
+      const res = await fetch(`/api/wishlist/toggle/${courseId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWishlist((prev) => prev.filter((c) => (c.id || c._id) !== courseId));
+      }
+    } catch (e) {
+      console.error('Failed to remove from wishlist', e);
+    }
+  };
 
   // Fetch complete profile from backend
   const fetchProfile = async () => {
@@ -108,6 +126,9 @@ export default function StudentProfile() {
 
       if (res.ok && data.success) {
         setProfileData(data.data);
+        if (data.data.wishlist) {
+          setWishlist(data.data.wishlist);
+        }
         const u = data.data.user || {};
 
         // Populate form fields
@@ -285,6 +306,7 @@ export default function StudentProfile() {
   const enrolledCourses = profileData?.enrolledCourses || [];
   const certificates = profileData?.certificates || [];
   const recommendedCourses = profileData?.recommendedCourses || [];
+  const quizAttempts = profileData?.quizAttempts || [];
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -363,20 +385,24 @@ export default function StudentProfile() {
               </div>
 
               {/* Stats Bar */}
-              <div className="pt-4 grid grid-cols-3 gap-4 max-w-sm mx-auto md:mx-0 border-t border-slate-100 mt-4 text-center">
+              <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-lg mx-auto md:mx-0 border-t border-slate-100 mt-4 text-center">
                 <div>
                   <div className="text-xl font-bold text-slate-900">{enrolledCourses.length}</div>
-                  <div className="text-[11px] text-slate-500 font-medium">Courses Enrolled</div>
+                  <div className="text-[11px] text-slate-500 font-medium">Enrolled</div>
                 </div>
                 <div>
                   <div className="text-xl font-bold text-indigo-600">{certificates.length}</div>
-                  <div className="text-[11px] text-slate-500 font-medium">Certifications</div>
+                  <div className="text-[11px] text-slate-500 font-medium">Certificates</div>
+                </div>
+                <div>
+                  <div className="text-xl font-bold text-rose-500">{wishlist.length}</div>
+                  <div className="text-[11px] text-slate-500 font-medium">Wishlist</div>
                 </div>
                 <div>
                   <div className="text-xl font-bold text-emerald-600">
-                    {skillsList.length}
+                    {quizAttempts.filter((q) => q.passed).length}
                   </div>
-                  <div className="text-[11px] text-slate-500 font-medium">Skills Mastered</div>
+                  <div className="text-[11px] text-slate-500 font-medium">Quizzes Passed</div>
                 </div>
               </div>
             </div>
@@ -694,6 +720,173 @@ export default function StudentProfile() {
               >
                 Browse Catalog
               </Link>
+            </div>
+          )}
+        </div>
+
+        {/* SECTION: MY WISHLIST */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <Heart className="w-4 h-4 fill-current" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">My Wishlist</h2>
+                <p className="text-xs text-slate-500">
+                  Curricula you have bookmarked to study next.
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+              {wishlist.length} Saved
+            </span>
+          </div>
+
+          {wishlist.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {wishlist.map((c) => {
+                const cId = c.id || c._id;
+                return (
+                  <div
+                    key={cId}
+                    className="border border-slate-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow flex flex-col bg-white justify-between"
+                  >
+                    <div>
+                      <div className="relative aspect-video bg-slate-900">
+                        <img
+                          src={c.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&auto=format&fit=crop&q=60'}
+                          alt={c.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-slate-900 shadow-sm">
+                          {c.category || 'Technology'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveWishlist(cId)}
+                          title="Remove from wishlist"
+                          className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-rose-500 text-white shadow-md hover:bg-rose-600 transition-colors"
+                        >
+                          <Heart className="w-3.5 h-3.5 fill-current" />
+                        </button>
+                        <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-black/75 text-white backdrop-blur-xs">
+                          {c.price === 0 ? 'Free' : `$${c.price}`}
+                        </span>
+                      </div>
+
+                      <div className="p-4 space-y-2">
+                        <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{c.title}</h3>
+                        <p className="text-xs text-slate-500 line-clamp-2">
+                          {c.shortDescription || c.description}
+                        </p>
+                        <p className="text-xs text-slate-400">By {c.instructor?.name || 'Academic Faculty'}</p>
+                      </div>
+                    </div>
+
+                    <div className="p-4 pt-0 flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => handleRemoveWishlist(cId)}
+                        className="text-xs font-semibold text-slate-400 hover:text-rose-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                      <Link
+                        to={`/courses/${c.slug || cId}`}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                      >
+                        Enroll Now
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-10 text-center rounded-2xl bg-slate-50/70 border border-slate-200">
+              <Heart className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs text-slate-500 font-medium">Your wishlist is currently empty.</p>
+              <Link
+                to="/courses"
+                className="mt-3 inline-block px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold"
+              >
+                Explore Courses & Save Favorites
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* SECTION: QUIZ RESULTS & ASSESSMENTS */}
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                <HelpCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Quiz Results & Assessments</h2>
+                <p className="text-xs text-slate-500">
+                  Real records of your knowledge evaluations, scored benchmarks, and pass criteria.
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+              {quizAttempts.length} Attempts
+            </span>
+          </div>
+
+          {quizAttempts.length > 0 ? (
+            <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
+              {quizAttempts.map((attempt) => (
+                <div
+                  key={attempt.id}
+                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white hover:bg-slate-50/50 transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-slate-900">{attempt.quizTitle}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wide ${
+                          attempt.passed
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}
+                      >
+                        {attempt.passed ? 'Passed' : 'Needs Retake'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Course: <strong className="text-slate-700">{attempt.courseTitle}</strong>
+                    </p>
+                    <span className="text-[11px] text-slate-400 block">
+                      Attempted on {new Date(attempt.completedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-base font-extrabold text-slate-900 block">
+                        {attempt.score} / {attempt.totalQuestions} ({attempt.percentage}%)
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">Evaluation Score</span>
+                    </div>
+                    <Link
+                      to={`/student/courses/${attempt.courseId}/learn`}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1 transition-colors"
+                    >
+                      Review
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-10 text-center rounded-2xl bg-slate-50/70 border border-slate-200">
+              <HelpCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs text-slate-500 font-medium">No quiz attempts recorded yet.</p>
+              <p className="text-[11px] text-slate-400 mt-1">Take interactive quizzes inside your enrolled courses to assess your learning.</p>
             </div>
           )}
         </div>

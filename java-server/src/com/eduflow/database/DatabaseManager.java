@@ -4,6 +4,7 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -128,6 +129,8 @@ public class DatabaseManager {
                     FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
                 );
             """);
+
+            try { stmt.execute("ALTER TABLE lessons ADD COLUMN resources TEXT DEFAULT '';"); } catch (SQLException ignored) {}
 
             // 5. Enrollments Table
             stmt.execute("""
@@ -264,7 +267,76 @@ public class DatabaseManager {
                 );
             """);
 
+            try { stmt.execute("ALTER TABLE lessons ADD COLUMN resources TEXT DEFAULT '';"); } catch (SQLException ignored) {}
+
+            // 13. Wishlist Table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS wishlist (
+                    id TEXT PRIMARY KEY,
+                    student_id TEXT NOT NULL,
+                    course_id TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(student_id, course_id),
+                    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+                );
+            """);
+
+            // 14. Quizzes Table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS quizzes (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL,
+                    module_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT DEFAULT '',
+                    passing_score INTEGER DEFAULT 70,
+                    order_num INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+                    FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
+                );
+            """);
+
+            // 15. Quiz Questions Table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_questions (
+                    id TEXT PRIMARY KEY,
+                    quiz_id TEXT NOT NULL,
+                    question_text TEXT NOT NULL,
+                    option_a TEXT NOT NULL,
+                    option_b TEXT NOT NULL,
+                    option_c TEXT NOT NULL,
+                    option_d TEXT NOT NULL,
+                    correct_option TEXT NOT NULL,
+                    explanation TEXT DEFAULT '',
+                    order_num INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE
+                );
+            """);
+
+            // 16. Quiz Attempts Table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS quiz_attempts (
+                    id TEXT PRIMARY KEY,
+                    quiz_id TEXT NOT NULL,
+                    student_id TEXT NOT NULL,
+                    course_id TEXT NOT NULL,
+                    score INTEGER NOT NULL,
+                    total_questions INTEGER NOT NULL,
+                    percentage INTEGER NOT NULL,
+                    passed INTEGER NOT NULL,
+                    answers_json TEXT DEFAULT '',
+                    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
+                    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+                );
+            """);
+
             populateCourseTagsAndCatalog(conn);
+            seedQuizzesAndResources(conn);
 
             System.out.println("[JDBC] Schema initialization successful on " + JDBC_URL);
         } catch (SQLException e) {
@@ -364,6 +436,186 @@ public class DatabaseManager {
             ps.executeUpdate();
         } catch (SQLException e) {
             System.err.println("[JDBC] Extra course seed error: " + e.getMessage());
+        }
+    }
+
+    private static void seedQuizzesAndResources(Connection conn) {
+        try {
+            // Update lesson resources if empty
+            String resJson = """
+                [{"title":"Lecture Reference Slides & Notes (PDF)","url":"https://arxiv.org/pdf/1706.03762","type":"pdf"},{"title":"GitHub Practice Repository & Code Samples","url":"https://github.com/torvalds/linux","type":"code"},{"title":"Official Documentation Reference","url":"https://docs.python.org/3/","type":"link"}]
+            """;
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE lessons SET resources = ? WHERE resources IS NULL OR resources = ''")) {
+                ps.setString(1, resJson.trim());
+                ps.executeUpdate();
+            }
+
+            // Check if quizzes already seeded
+            try (Statement st = conn.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM quizzes")) {
+                if (rs.next() && rs.getInt(1) >= 3) {
+                    return; // already seeded
+                }
+            }
+
+            String quizSql = "INSERT OR IGNORE INTO quizzes (id, course_id, module_id, title, description, passing_score, order_num) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            String qSql = "INSERT OR IGNORE INTO quiz_questions (id, quiz_id, question_text, option_a, option_b, option_c, option_d, correct_option, explanation, order_num) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (PreparedStatement qzPs = conn.prepareStatement(quizSql);
+                 PreparedStatement qPs = conn.prepareStatement(qSql)) {
+
+                // Quiz 1: ML Foundations
+                String qz1Id = "qz-ml-1";
+                qzPs.setString(1, qz1Id);
+                qzPs.setString(2, "crs-free-ml");
+                qzPs.setString(3, "mod-ml-1");
+                qzPs.setString(4, "Machine Learning Workflow & Validation Quiz");
+                qzPs.setString(5, "Test your understanding of supervised learning, regression, and cross-validation.");
+                qzPs.setInt(6, 70);
+                qzPs.setInt(7, 1);
+                qzPs.executeUpdate();
+
+                // Questions for Quiz 1
+                qPs.setString(1, "q-ml-1-1");
+                qPs.setString(2, qz1Id);
+                qPs.setString(3, "Which evaluation metric is most appropriate for assessing an imbalanced binary classification model?");
+                qPs.setString(4, "Accuracy");
+                qPs.setString(5, "F1-Score / Area Under ROC Curve (ROC-AUC)");
+                qPs.setString(6, "Mean Absolute Error");
+                qPs.setString(7, "R-Squared");
+                qPs.setString(8, "B");
+                qPs.setString(9, "When classes are heavily skewed, accuracy is misleading; F1-Score balances precision and recall.");
+                qPs.setInt(10, 1);
+                qPs.executeUpdate();
+
+                qPs.setString(1, "q-ml-1-2");
+                qPs.setString(2, qz1Id);
+                qPs.setString(3, "In linear regression, what role does the objective loss function play during training?");
+                qPs.setString(4, "It normalizes feature scale distributions.");
+                qPs.setString(5, "It quantifies the residual discrepancy between predicted and ground-truth target values.");
+                qPs.setString(6, "It performs principal component extraction.");
+                qPs.setString(7, "It encodes categorical labels.");
+                qPs.setString(8, "B");
+                qPs.setString(9, "The loss function computes error (MSE) which optimization algorithms minimize.");
+                qPs.setInt(10, 2);
+                qPs.executeUpdate();
+
+                qPs.setString(1, "q-ml-1-3");
+                qPs.setString(2, qz1Id);
+                qPs.setString(3, "What is the primary danger of training without a dedicated validation or test split?");
+                qPs.setString(4, "Underfitting");
+                qPs.setString(5, "Overfitting to training noise and lack of generalizability");
+                qPs.setString(6, "Gradient explosion in linear models");
+                qPs.setString(7, "Memory fragmentation in NumPy");
+                qPs.setString(8, "B");
+                qPs.setString(9, "Models evaluated only on training data cannot reveal over-parameterized overfitting.");
+                qPs.setInt(10, 3);
+                qPs.executeUpdate();
+
+                // Quiz 2: Python Foundations
+                String qz2Id = "qz-py-1";
+                qzPs.setString(1, qz2Id);
+                qzPs.setString(2, "crs-free-python");
+                qzPs.setString(3, "mod-py-1");
+                qzPs.setString(4, "Python Core Syntax & Data Structures Quiz");
+                qzPs.setString(5, "Verify core Python concepts, mutability, and error handling mechanisms.");
+                qzPs.setInt(6, 70);
+                qzPs.setInt(7, 1);
+                qzPs.executeUpdate();
+
+                qPs.setString(1, "q-py-1-1");
+                qPs.setString(2, qz2Id);
+                qPs.setString(3, "Which of the following built-in collection types in Python is mutable?");
+                qPs.setString(4, "tuple");
+                qPs.setString(5, "list");
+                qPs.setString(6, "str");
+                qPs.setString(7, "frozenset");
+                qPs.setString(8, "B");
+                qPs.setString(9, "Python lists are mutable sequence types allowing item assignment and appending.");
+                qPs.setInt(10, 1);
+                qPs.executeUpdate();
+
+                qPs.setString(1, "q-py-1-2");
+                qPs.setString(2, qz2Id);
+                qPs.setString(3, "What does the Python 'is' operator evaluate?");
+                qPs.setString(4, "Value equality (equivalent to ==)");
+                qPs.setString(5, "Memory identity (whether two references point to the exact same object in RAM)");
+                qPs.setString(6, "Type equivalence only");
+                qPs.setString(7, "Subclass hierarchy");
+                qPs.setString(8, "B");
+                qPs.setString(9, "'is' compares memory addresses (id()), whereas '==' compares equality of content.");
+                qPs.setInt(10, 2);
+                qPs.executeUpdate();
+
+                qPs.setString(1, "q-py-1-3");
+                qPs.setString(2, qz2Id);
+                qPs.setString(3, "Which block in a try-except statement is guaranteed to run regardless of exception occurrence?");
+                qPs.setString(4, "catch");
+                qPs.setString(5, "finally");
+                qPs.setString(6, "else");
+                qPs.setString(7, "ensure");
+                qPs.setString(8, "B");
+                qPs.setString(9, "The 'finally' clause is always executed prior to exiting the try statement.");
+                qPs.setInt(10, 3);
+                qPs.executeUpdate();
+
+                // Quiz 3: React Full-Stack
+                String qz3Id = "qz-react-1";
+                qzPs.setString(1, qz3Id);
+                qzPs.setString(2, "crs-react-pro");
+                qzPs.setString(3, "mod-c1-1");
+                qzPs.setString(4, "Modern React & Component Lifecycle Quiz");
+                qzPs.setString(5, "Assess your proficiency with React 18 hooks, rendering rules, and RESTful communication.");
+                qzPs.setInt(6, 70);
+                qzPs.setInt(7, 1);
+                qzPs.executeUpdate();
+
+                qPs.setString(1, "q-react-1-1");
+                qPs.setString(2, qz3Id);
+                qPs.setString(3, "When does React execute the cleanup return function of a useEffect hook?");
+                qPs.setString(4, "Only on initial component mount");
+                qPs.setString(5, "Before the component unmounts and before re-running the effect on dependency change");
+                qPs.setString(6, "On every microtask tick");
+                qPs.setString(7, "Never automatically");
+                qPs.setString(8, "B");
+                qPs.setString(9, "The cleanup function cleans up prior effects (subscriptions, timers) before the next run or unmount.");
+                qPs.setInt(10, 1);
+                qPs.executeUpdate();
+
+                qPs.setString(1, "q-react-1-2");
+                qPs.setString(2, qz3Id);
+                qPs.setString(3, "Which React hook is designed specifically to memoize heavy computational results between re-renders?");
+                qPs.setString(4, "useCallback");
+                qPs.setString(5, "useMemo");
+                qPs.setString(6, "useRef");
+                qPs.setString(7, "useReducer");
+                qPs.setString(8, "B");
+                qPs.setString(9, "useMemo memoizes values, while useCallback memoizes function definitions.");
+                qPs.setInt(10, 2);
+                qPs.executeUpdate();
+
+                qPs.setString(1, "q-react-1-3");
+                qPs.setString(2, qz3Id);
+                qPs.setString(3, "Why should React state never be mutated directly (e.g., state.property = value)?");
+                qPs.setString(4, "JavaScript throws a syntax error");
+                qPs.setString(5, "React relies on shallow reference comparison to detect state changes and schedule re-renders");
+                qPs.setString(6, "It deletes localStorage");
+                qPs.setString(7, "It causes server timeouts");
+                qPs.setString(8, "B");
+                qPs.setString(9, "Direct mutations don't change object reference identity, causing React to miss the update.");
+                qPs.setInt(10, 3);
+                qPs.executeUpdate();
+            }
+
+            // Seed downloadable resources for lessons
+            try (Statement resStmt = conn.createStatement()) {
+                resStmt.execute("UPDATE lessons SET resources = '[{\"name\":\"Python Quickstart Cheatsheet (PDF)\",\"url\":\"https://www.python.org/doc/\",\"type\":\"pdf\"},{\"name\":\"Course Source Code Repo\",\"url\":\"https://github.com/python/cpython\",\"type\":\"code\"},{\"name\":\"Standard Library Guide\",\"url\":\"https://docs.python.org/3/library/\",\"type\":\"link\"}]' WHERE (resources IS NULL OR resources = '') AND course_id = 'crs-free-python';");
+                resStmt.execute("UPDATE lessons SET resources = '[{\"name\":\"Scikit-Learn Guidebook (PDF)\",\"url\":\"https://scikit-learn.org/stable/\",\"type\":\"pdf\"},{\"name\":\"Jupyter ML Starter Project\",\"url\":\"https://github.com/ageron/handson-ml3\",\"type\":\"code\"},{\"name\":\"Evaluation Metrics Reference\",\"url\":\"https://scikit-learn.org/stable/modules/model_evaluation.html\",\"type\":\"link\"}]' WHERE (resources IS NULL OR resources = '') AND course_id = 'crs-free-ml';");
+                resStmt.execute("UPDATE lessons SET resources = '[{\"name\":\"React 18 Architecture Spec (PDF)\",\"url\":\"https://react.dev/reference/react\",\"type\":\"pdf\"},{\"name\":\"Starter Vite Repository\",\"url\":\"https://github.com/vitejs/vite\",\"type\":\"code\"},{\"name\":\"Hooks Cheat Sheet\",\"url\":\"https://react.dev/learn\",\"type\":\"link\"}]' WHERE (resources IS NULL OR resources = '') AND course_id = 'crs-react-pro';");
+            } catch (SQLException ignored) {}
+
+        } catch (SQLException e) {
+            System.err.println("[JDBC] Quizzes and resources seed error: " + e.getMessage());
         }
     }
 }

@@ -25,6 +25,8 @@ public class ProfileHandler implements HttpHandler {
     private final EnrollmentDAO enrollmentDAO = new EnrollmentDAO();
     private final CertificateDAO certificateDAO = new CertificateDAO();
     private final CourseDAO courseDAO = new CourseDAO();
+    private final com.eduflow.dao.WishlistDAO wishlistDAO = new com.eduflow.dao.WishlistDAO();
+    private final com.eduflow.dao.QuizDAO quizDAO = new com.eduflow.dao.QuizDAO();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -87,6 +89,8 @@ public class ProfileHandler implements HttpHandler {
         data.put("enrolledCourses", enrollments);
         data.put("certificates", certificates);
         data.put("recommendedCourses", recommended);
+        data.put("wishlist", wishlistDAO.getWishlistCourses(userId));
+        data.put("quizAttempts", quizDAO.getAttemptsByStudent(userId));
 
         ResponseUtil.sendSuccess(exchange, 200, data, "Learner profile loaded successfully");
     }

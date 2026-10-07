@@ -34,6 +34,8 @@ public class LmsHttpServer {
         server.createContext("/api/users", new UserHandler());
         server.createContext("/api/profile", new ProfileHandler());
         server.createContext("/api/certificates", new CertificateHandler());
+        server.createContext("/api/wishlist", new WishlistHandler());
+        server.createContext("/api/quizzes", new QuizHandler());
 
         // Health Check
         server.createContext("/api/health", new HttpHandler() {

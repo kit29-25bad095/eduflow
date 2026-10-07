@@ -20,6 +20,8 @@ import {
   ShieldCheck,
   Check,
   Zap,
+  Heart,
+  HelpCircle,
 } from 'lucide-react';
 
 function getEmbedVideoUrl(url) {
@@ -70,6 +72,8 @@ export default function CourseDetails() {
 
   // Collapsible modules state
   const [expandedModules, setExpandedModules] = useState({});
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [courseQuizzes, setCourseQuizzes] = useState([]);
 
   // Default expand first module when course loads
   useEffect(() => {
@@ -82,14 +86,25 @@ export default function CourseDetails() {
     const loadCourse = async () => {
       setIsLoading(true);
       try {
-        const [courseRes, reviewRes] = await Promise.all([
+        const [courseRes, reviewRes, quizRes, wishlistRes] = await Promise.all([
           api.get(`/courses/${id}`),
           api.get(`/reviews/course/${id}`).catch(() => ({ data: { data: [] } })),
+          api.get(`/quizzes/course/${id}`).catch(() => ({ data: { data: [] } })),
+          isAuthenticated ? api.get('/wishlist/ids').catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
         ]);
 
         if (courseRes.data.success) {
           const cData = courseRes.data.data;
           setCourse(cData);
+          const cId = cData.id || cData._id;
+
+          if (wishlistRes.data?.data && Array.isArray(wishlistRes.data.data)) {
+            setIsWishlisted(wishlistRes.data.data.includes(cId));
+          }
+          if (quizRes.data?.data) {
+            setCourseQuizzes(quizRes.data.data);
+          }
+
           if (reviewRes.data?.data?.length > 0) {
             setReviews(reviewRes.data.data);
           } else if (cData.id || cData._id) {
@@ -108,7 +123,23 @@ export default function CourseDetails() {
     };
 
     loadCourse();
-  }, [id]);
+  }, [id, isAuthenticated]);
+
+  const handleToggleWishlist = async () => {
+    if (!isAuthenticated) {
+      alert('Please log in to save this course to your wishlist.');
+      return;
+    }
+    const targetId = course?._id || course?.id || id;
+    try {
+      const res = await api.post(`/wishlist/toggle/${targetId}`);
+      if (res.data.success) {
+        setIsWishlisted(res.data.data?.wishlisted);
+      }
+    } catch (e) {
+      console.error('Wishlist toggle error', e);
+    }
+  };
 
   const handleEnroll = async () => {
     if (!isAuthenticated) {
@@ -442,6 +473,19 @@ export default function CourseDetails() {
                         <span>30-Day Money-Back Guarantee • Instant Activation</span>
                       </p>
                     )}
+                    {/* Wishlist Toggle Button */}
+                    <button
+                      type="button"
+                      onClick={handleToggleWishlist}
+                      className={`w-full py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-colors ${
+                        isWishlisted
+                          ? 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current text-rose-500' : ''}`} />
+                      <span>{isWishlisted ? 'Saved in Wishlist' : 'Add to Wishlist'}</span>
+                    </button>
                   </div>
                 )}
 
@@ -450,6 +494,10 @@ export default function CourseDetails() {
                   <div className="flex items-center gap-2.5">
                     <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
                     <span>{totalLessons} lessons with video, code & notes</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <HelpCircle className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>{courseQuizzes.length || 1} graded mastery quizzes & checkpoints</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Award className="w-4 h-4 text-indigo-600 shrink-0" />
@@ -601,14 +649,42 @@ export default function CourseDetails() {
 
                             <div className="flex items-center gap-2.5 text-xs">
                               {lesson.isPreview && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-200/60">
-                                  Free Preview
-                                </span>
-                              )}
-                              <span className="text-slate-400 font-medium">{lesson.duration || 10} min</span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-200/60">
+                                    Free Preview
+                                  </span>
+                                )}
+                                <span className="text-slate-400 font-medium">{lesson.duration || 10} min</span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        {courseQuizzes
+                          ?.filter((q) => q.moduleId === mod._id || (!q.moduleId && idx === (course.modules?.length || 1) - 1))
+                          .map((quiz) => (
+                            <div
+                              key={quiz.id}
+                              className="p-3.5 px-4 flex items-center justify-between bg-violet-50/40 hover:bg-violet-50/70 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <HelpCircle className="w-4 h-4 text-violet-600 shrink-0" />
+                                <div>
+                                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    {quiz.title}
+                                    <span className="text-[10px] uppercase font-bold text-violet-600 bg-violet-100/80 px-1.5 py-0.5 rounded">
+                                      Quiz
+                                    </span>
+                                  </span>
+                                  {quiz.description && (
+                                    <p className="text-[11px] text-slate-500 line-clamp-1">{quiz.description}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2.5 text-xs">
+                                <span className="text-slate-400 font-medium">
+                                  {quiz.questions?.length || 5} questions • {quiz.passingScore || 70}% to pass
+                                </span>
+                              </div>
+                            </div>
+                          ))}
                       </div>
                     )}
                   </div>

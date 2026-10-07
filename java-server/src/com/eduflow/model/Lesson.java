@@ -12,6 +12,7 @@ public class Lesson {
     private int duration;
     private int order;
     private boolean isPreview;
+    private String resources;
 
     public Lesson() {}
 
@@ -57,4 +58,7 @@ public class Lesson {
 
     public boolean isPreview() { return isPreview; }
     public void setPreview(boolean preview) { isPreview = preview; }
+
+    public String getResources() { return resources; }
+    public void setResources(String resources) { this.resources = resources; }
 }

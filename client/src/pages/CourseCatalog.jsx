@@ -13,13 +13,18 @@ import {
   ChevronRight,
   Sparkles,
   ArrowRight,
+  Heart,
 } from 'lucide-react';
 
-function CourseCard({ course, isRecommended = false }) {
+function CourseCard({ course, isRecommended = false, isWishlisted = false, onToggleWishlist }) {
+  const courseId = course.id || course._id;
+  const skillsList = course.skills ? course.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const tagsList = course.tags ? course.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+
   return (
     <Link
       to={`/courses/${course.slug || course._id || course.id}`}
-      className="group bg-white rounded-2xl border border-slate-200/90 hover:border-slate-400 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between"
+      className="group bg-white rounded-2xl border border-slate-200/90 hover:border-slate-400 hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col justify-between relative"
     >
       <div>
         {/* Thumbnail Container */}
@@ -31,7 +36,7 @@ function CourseCard({ course, isRecommended = false }) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
 
-          {/* Top Badges */}
+          {/* Top Left Badges */}
           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-slate-900 shadow-sm">
               {course.category}
@@ -52,8 +57,28 @@ function CourseCard({ course, isRecommended = false }) {
               </span>
             )}
           </div>
-          <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900/80 backdrop-blur-sm text-slate-200 border border-white/10">
-            {course.level}
+
+          {/* Top Right Controls (Wishlist Button & Level) */}
+          <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-900/80 backdrop-blur-sm text-slate-200 border border-white/10">
+              {course.level}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onToggleWishlist) onToggleWishlist(courseId);
+              }}
+              title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+              className={`p-1.5 rounded-full backdrop-blur-md transition-transform active:scale-90 ${
+                isWishlisted
+                  ? 'bg-rose-500 text-white shadow-md'
+                  : 'bg-black/40 text-white hover:bg-black/70 hover:scale-105'
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-white stroke-white' : ''}`} />
+            </button>
           </div>
 
           {/* Bottom Duration Badge on image */}
@@ -78,6 +103,22 @@ function CourseCard({ course, isRecommended = false }) {
           <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
             {course.shortDescription || course.description}
           </p>
+
+          {/* Skills and Tags badges */}
+          {(skillsList.length > 0 || tagsList.length > 0) && (
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {skillsList.slice(0, 2).map((sk, idx) => (
+                <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700">
+                  {sk}
+                </span>
+              ))}
+              {tagsList.slice(0, 1).map((tg, idx) => (
+                <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
+                  #{tg}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Instructor snippet */}
           <div className="flex items-center gap-2 pt-1 text-xs text-slate-600">
@@ -146,10 +187,56 @@ export default function CourseCatalog() {
   const category = searchParams.get('category') || 'All';
   const level = searchParams.get('level') || 'All Levels';
   const priceType = searchParams.get('priceType') || 'All Prices';
+  const durationFilter = searchParams.get('duration') || 'All Durations';
+  const ratingFilter = searchParams.get('rating') || 'All Ratings';
   const sort = searchParams.get('sort') || 'newest';
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   const [searchInput, setSearchInput] = useState(search);
+  const [wishlistIds, setWishlistIds] = useState(new Set());
+
+  // Fetch wishlist IDs when logged in
+  const fetchWishlist = async () => {
+    if (!isAuthenticated || !token) {
+      setWishlistIds(new Set());
+      return;
+    }
+    try {
+      const res = await api.get('/wishlist/ids');
+      if (res.data.success && Array.isArray(res.data.data)) {
+        setWishlistIds(new Set(res.data.data));
+      }
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchWishlist();
+  }, [isAuthenticated, token]);
+
+  const handleToggleWishlist = async (courseId) => {
+    if (!isAuthenticated) {
+      alert('Please log in to save courses to your wishlist.');
+      return;
+    }
+    try {
+      const res = await api.post(`/wishlist/toggle/${courseId}`);
+      if (res.data.success) {
+        setWishlistIds((prev) => {
+          const next = new Set(prev);
+          if (res.data.data?.wishlisted) {
+            next.add(courseId);
+          } else {
+            next.delete(courseId);
+          }
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error('Wishlist toggle error', err);
+    }
+  };
 
   // Fetch categories once
   useEffect(() => {
@@ -220,7 +307,7 @@ export default function CourseCatalog() {
 
   const updateFilter = (key, value) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (value && value !== 'All' && value !== 'All Levels' && value !== 'All Prices') {
+    if (value && !value.startsWith('All')) {
       nextParams.set(key, value);
     } else {
       nextParams.delete(key);
@@ -235,8 +322,21 @@ export default function CourseCatalog() {
   };
 
   const displayedCourses = courses.filter((c) => {
-    if (priceType === 'free') return c.price === 0;
-    if (priceType === 'paid') return c.price > 0;
+    if (priceType === 'free' && c.price !== 0) return false;
+    if (priceType === 'paid' && c.price === 0) return false;
+
+    // Rating filter
+    const avgRating = c.rating?.average || 5.0;
+    if (ratingFilter === '4.5' && avgRating < 4.5) return false;
+    if (ratingFilter === '4.0' && avgRating < 4.0) return false;
+    if (ratingFilter === '3.5' && avgRating < 3.5) return false;
+
+    // Duration filter
+    const durHours = parseInt(c.duration) || 6;
+    if (durationFilter === 'short' && durHours >= 3) return false;
+    if (durationFilter === 'medium' && (durHours < 3 || durHours > 10)) return false;
+    if (durationFilter === 'long' && durHours <= 10) return false;
+
     return true;
   });
 
@@ -311,6 +411,30 @@ export default function CourseCatalog() {
               <option value="Advanced">Advanced</option>
             </select>
 
+            {/* Duration */}
+            <select
+              value={durationFilter}
+              onChange={(e) => updateFilter('duration', e.target.value)}
+              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:border-indigo-500 cursor-pointer hover:bg-slate-50"
+            >
+              <option value="All Durations">All Durations</option>
+              <option value="short">&lt; 3 Hours</option>
+              <option value="medium">3 - 10 Hours</option>
+              <option value="long">&gt; 10 Hours</option>
+            </select>
+
+            {/* Rating */}
+            <select
+              value={ratingFilter}
+              onChange={(e) => updateFilter('rating', e.target.value)}
+              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:border-indigo-500 cursor-pointer hover:bg-slate-50"
+            >
+              <option value="All Ratings">All Ratings</option>
+              <option value="4.5">★ 4.5 & up</option>
+              <option value="4.0">★ 4.0 & up</option>
+              <option value="3.5">★ 3.5 & up</option>
+            </select>
+
             {/* Sort */}
             <select
               value={sort}
@@ -347,7 +471,7 @@ export default function CourseCatalog() {
         </div>
 
         {/* Active Filter Indicators */}
-        {(search || category !== 'All' || level !== 'All Levels' || priceType !== 'All Prices') && (
+        {(search || category !== 'All' || level !== 'All Levels' || priceType !== 'All Prices' || durationFilter !== 'All Durations' || ratingFilter !== 'All Ratings') && (
           <div className="flex flex-wrap items-center gap-2 pt-2 text-xs border-t border-slate-100">
             <span className="text-slate-400 text-[11px]">Active filters:</span>
             {search && (
@@ -372,6 +496,18 @@ export default function CourseCatalog() {
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-medium">
                 Pricing: {priceType === 'free' ? 'Free Courses' : 'Paid Courses'}
                 <button onClick={() => updateFilter('priceType', 'All Prices')} className="hover:text-indigo-900 font-bold ml-1">×</button>
+              </span>
+            )}
+            {durationFilter !== 'All Durations' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-medium">
+                Duration: {durationFilter === 'short' ? '< 3 Hours' : durationFilter === 'medium' ? '3 - 10 Hours' : '> 10 Hours'}
+                <button onClick={() => updateFilter('duration', 'All Durations')} className="hover:text-indigo-900 font-bold ml-1">×</button>
+              </span>
+            )}
+            {ratingFilter !== 'All Ratings' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-medium">
+                Rating: ★ {ratingFilter}+
+                <button onClick={() => updateFilter('rating', 'All Ratings')} className="hover:text-indigo-900 font-bold ml-1">×</button>
               </span>
             )}
             <button
@@ -473,7 +609,13 @@ export default function CourseCatalog() {
             {/* Top 6-8 relevant courses */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {recommendedCourses.map((course) => (
-                <CourseCard key={course._id || course.id} course={course} isRecommended={true} />
+                <CourseCard
+                  key={course._id || course.id}
+                  course={course}
+                  isRecommended={true}
+                  isWishlisted={wishlistIds.has(course._id || course.id)}
+                  onToggleWishlist={handleToggleWishlist}
+                />
               ))}
             </div>
           </div>
@@ -552,7 +694,13 @@ export default function CourseCatalog() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {displayedCourses.map((course) => (
-              <CourseCard key={course._id || course.id} course={course} isRecommended={false} />
+              <CourseCard
+                key={course._id || course.id}
+                course={course}
+                isRecommended={false}
+                isWishlisted={wishlistIds.has(course._id || course.id)}
+                onToggleWishlist={handleToggleWishlist}
+              />
             ))}
           </div>
 
