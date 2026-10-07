@@ -61,6 +61,12 @@ public class DatabaseManager {
             try { stmt.execute("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT '';"); } catch (SQLException ignored) {}
             try { stmt.execute("ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'LOCAL';"); } catch (SQLException ignored) {}
             try { stmt.execute("ALTER TABLE users ADD COLUMN updated_at TIMESTAMP;"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN degree TEXT DEFAULT '';"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN specialization TEXT DEFAULT '';"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN institution TEXT DEFAULT '';"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN course_interests TEXT DEFAULT '';"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN learning_goals TEXT DEFAULT '';"); } catch (SQLException ignored) {}
+            try { stmt.execute("ALTER TABLE users ADD COLUMN profile_completed INTEGER DEFAULT 0;"); } catch (SQLException ignored) {}
 
             // 2. Courses Table
             stmt.execute("""
@@ -231,6 +237,25 @@ public class DatabaseManager {
                     transaction_id TEXT UNIQUE NOT NULL,
                     status TEXT DEFAULT 'completed',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+                );
+            """);
+
+            // 12. Certificates Table (Automatic Generation)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS certificates (
+                    id TEXT PRIMARY KEY,
+                    certificate_id TEXT UNIQUE NOT NULL,
+                    student_id TEXT NOT NULL,
+                    course_id TEXT NOT NULL,
+                    course_name TEXT NOT NULL,
+                    student_name TEXT NOT NULL,
+                    issued_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    certificate_url TEXT DEFAULT '',
+                    verification_code TEXT UNIQUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(student_id, course_id),
                     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
                     FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
                 );

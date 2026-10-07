@@ -106,6 +106,7 @@ public class ProgressDAO {
         result.put("completedLessons", completedLessons);
         result.put("totalLessons", totalLessons);
         result.put("isCompleted", isCompleted);
+        result.put("courseId", courseId);
         return result;
     }
 

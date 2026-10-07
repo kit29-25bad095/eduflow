@@ -12,6 +12,12 @@ public class User {
     private String profileImage;
     private String bio;
     private String skills;
+    private String degree = "";
+    private String specialization = "";
+    private String institution = "";
+    private String courseInterests = "";
+    private String learningGoals = "";
+    private boolean profileCompleted = false;
     private boolean isActive;
     private String createdAt;
     private String updatedAt;
@@ -60,6 +66,24 @@ public class User {
 
     public String getSkills() { return skills; }
     public void setSkills(String skills) { this.skills = skills; }
+
+    public String getDegree() { return degree != null ? degree : ""; }
+    public void setDegree(String degree) { this.degree = degree; }
+
+    public String getSpecialization() { return specialization != null ? specialization : ""; }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
+
+    public String getInstitution() { return institution != null ? institution : ""; }
+    public void setInstitution(String institution) { this.institution = institution; }
+
+    public String getCourseInterests() { return courseInterests != null ? courseInterests : ""; }
+    public void setCourseInterests(String courseInterests) { this.courseInterests = courseInterests; }
+
+    public String getLearningGoals() { return learningGoals != null ? learningGoals : ""; }
+    public void setLearningGoals(String learningGoals) { this.learningGoals = learningGoals; }
+
+    public boolean isProfileCompleted() { return profileCompleted; }
+    public void setProfileCompleted(boolean profileCompleted) { this.profileCompleted = profileCompleted; }
 
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { isActive = active; }

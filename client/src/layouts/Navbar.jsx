@@ -89,6 +89,13 @@ export default function Navbar() {
                     My Courses
                   </Link>
                   <Link
+                    to="/profile"
+                    className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <User className="w-4 h-4" />
+                    Learner Profile
+                  </Link>
+                  <Link
                     to="/student/dashboard"
                     className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1.5"
                   >
@@ -243,14 +250,24 @@ export default function Navbar() {
                       </div>
 
                       {role === 'student' && (
-                        <Link
-                          to="/student/dashboard"
-                          onClick={() => setShowUserMenu(false)}
-                          className="px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                        >
-                          <LayoutDashboard className="w-3.5 h-3.5 text-slate-400" />
-                          Student Dashboard
-                        </Link>
+                        <>
+                          <Link
+                            to="/profile"
+                            onClick={() => setShowUserMenu(false)}
+                            className="px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <User className="w-3.5 h-3.5 text-slate-400" />
+                            Learner Profile
+                          </Link>
+                          <Link
+                            to="/student/dashboard"
+                            onClick={() => setShowUserMenu(false)}
+                            className="px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <LayoutDashboard className="w-3.5 h-3.5 text-slate-400" />
+                            Student Dashboard
+                          </Link>
+                        </>
                       )}
 
                       {role === 'instructor' && (

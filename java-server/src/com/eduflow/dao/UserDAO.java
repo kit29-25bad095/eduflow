@@ -125,6 +125,63 @@ public class UserDAO {
         }
     }
 
+    public void updateOnboarding(String id, String degree, String specialization, String institution,
+                                 String skills, String courseInterests, String learningGoals) throws SQLException {
+        String sql = """
+            UPDATE users SET
+                degree = ?,
+                specialization = ?,
+                institution = ?,
+                skills = ?,
+                course_interests = ?,
+                learning_goals = ?,
+                profile_completed = 1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, degree != null ? degree : "");
+            pstmt.setString(2, specialization != null ? specialization : "");
+            pstmt.setString(3, institution != null ? institution : "");
+            pstmt.setString(4, skills != null ? skills : "");
+            pstmt.setString(5, courseInterests != null ? courseInterests : "");
+            pstmt.setString(6, learningGoals != null ? learningGoals : "");
+            pstmt.setString(7, id);
+            pstmt.executeUpdate();
+        }
+    }
+
+    public void updateLearnerProfile(String id, String name, String degree, String specialization, String institution,
+                                     String skills, String courseInterests, String learningGoals, String profileImage) throws SQLException {
+        String sql = """
+            UPDATE users SET
+                name = COALESCE(?, name),
+                degree = COALESCE(?, degree),
+                specialization = COALESCE(?, specialization),
+                institution = COALESCE(?, institution),
+                skills = COALESCE(?, skills),
+                course_interests = COALESCE(?, course_interests),
+                learning_goals = COALESCE(?, learning_goals),
+                profile_image = COALESCE(?, profile_image),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, name);
+            pstmt.setString(2, degree);
+            pstmt.setString(3, specialization);
+            pstmt.setString(4, institution);
+            pstmt.setString(5, skills);
+            pstmt.setString(6, courseInterests);
+            pstmt.setString(7, learningGoals);
+            pstmt.setString(8, profileImage);
+            pstmt.setString(9, id);
+            pstmt.executeUpdate();
+        }
+    }
+
     public void updatePassword(String id, String newPassword) throws SQLException {
         String sql = "UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = DatabaseManager.getConnection();
@@ -220,6 +277,12 @@ public class UserDAO {
             u.setGoogleId(rs.getString("google_id"));
             u.setAuthProvider(rs.getString("auth_provider"));
             u.setUpdatedAt(rs.getString("updated_at"));
+            u.setDegree(rs.getString("degree"));
+            u.setSpecialization(rs.getString("specialization"));
+            u.setInstitution(rs.getString("institution"));
+            u.setCourseInterests(rs.getString("course_interests"));
+            u.setLearningGoals(rs.getString("learning_goals"));
+            u.setProfileCompleted(rs.getInt("profile_completed") == 1);
         } catch (SQLException ignored) {}
 
         u.setCreatedAt(rs.getString("created_at"));

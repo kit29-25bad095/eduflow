@@ -17,6 +17,8 @@ import OAuthCallback from './pages/OAuthCallback';
 import StudentDashboard from './pages/StudentDashboard';
 import MyCourses from './pages/MyCourses';
 import CoursePlayer from './pages/CoursePlayer';
+import StudentProfile from './pages/StudentProfile';
+import CertificateVerification from './pages/CertificateVerification';
 
 // Instructor Pages
 import InstructorDashboard from './pages/InstructorDashboard';
@@ -50,6 +52,27 @@ export default function App() {
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               <Route path="oauth-callback" element={<OAuthCallback />} />
+
+              {/* Public Certificate Verification Route */}
+              <Route path="certificates/verify/:verificationCode" element={<CertificateVerification />} />
+
+              {/* Learner Profile Routes */}
+              <Route
+                path="profile"
+                element={
+                  <ProtectedRoute allowedRoles={['student', 'admin', 'instructor']}>
+                    <StudentProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="student/profile"
+                element={
+                  <ProtectedRoute allowedRoles={['student', 'admin']}>
+                    <StudentProfile />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Student Routes */}
               <Route

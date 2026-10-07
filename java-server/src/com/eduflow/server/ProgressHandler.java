@@ -11,9 +11,19 @@ import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
 import java.util.Map;
 
+import com.eduflow.dao.CertificateDAO;
+import com.eduflow.dao.CourseDAO;
+import com.eduflow.dao.UserDAO;
+import com.eduflow.model.Certificate;
+import com.eduflow.model.Course;
+import com.eduflow.model.User;
+
 public class ProgressHandler implements HttpHandler {
     private final ProgressDAO progressDAO = new ProgressDAO();
     private final NotificationDAO notificationDAO = new NotificationDAO();
+    private final CertificateDAO certificateDAO = new CertificateDAO();
+    private final CourseDAO courseDAO = new CourseDAO();
+    private final UserDAO userDAO = new UserDAO();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -49,8 +59,35 @@ public class ProgressHandler implements HttpHandler {
                 Map<String, Object> progress = progressDAO.completeLesson(userId, lessonId, timeSpent);
 
                 if (Boolean.TRUE.equals(progress.get("isCompleted"))) {
-                    notificationDAO.createNotification(userId, "COMPLETION", "🎉 Course Completed!",
-                            "Congratulations! You have completed all lessons in this course.");
+                    String courseId = (String) progress.get("courseId");
+                    String courseName = "Course";
+                    String studentName = "Student";
+
+                    try {
+                        User user = userDAO.findById(userId);
+                        if (user != null && user.getName() != null) {
+                            studentName = user.getName();
+                        }
+                        if (courseId != null) {
+                            Course course = courseDAO.findByIdOrSlug(courseId);
+                            if (course != null && course.getTitle() != null) {
+                                courseName = course.getTitle();
+                            }
+                        }
+
+                        // Auto-generate certificate if not exists
+                        Certificate cert = certificateDAO.findByStudentAndCourse(userId, courseId);
+                        if (cert == null) {
+                            cert = certificateDAO.createCertificate(userId, courseId, courseName, studentName);
+                        }
+                        progress.put("certificate", cert);
+
+                        // Certificate notification as requested:
+                        notificationDAO.createNotification(userId, "COMPLETION", "🎉 Congratulations!",
+                                "You have successfully completed " + courseName + ". Your certificate is now available in your profile.");
+                    } catch (Exception ex) {
+                        System.err.println("Error generating certificate or notification: " + ex.getMessage());
+                    }
                 }
 
                 ResponseUtil.sendSuccess(exchange, 200, progress, "Lesson marked as complete");
