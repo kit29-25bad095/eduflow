@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Search,
   MessageSquare,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -198,33 +199,59 @@ export default function Navbar() {
                             No notifications yet.
                           </div>
                         ) : (
-                          notifications.map((n) => (
-                            <div
-                              key={n._id}
-                              onClick={() => !n.read && markAsRead(n._id)}
-                              className={`p-3.5 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 items-start ${
-                                !n.read ? 'bg-indigo-50/50' : ''
-                              }`}
-                            >
+                          notifications.map((n) => {
+                            const isWarning = n.type === 'warning';
+                            const notifId = n.id || n._id;
+                            const isUnread = !n.read && !n.is_read;
+                            return (
                               <div
-                                className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                                  !n.read ? 'bg-indigo-600' : 'bg-transparent'
+                                key={notifId}
+                                onClick={() => isUnread && markAsRead(notifId)}
+                                className={`p-3.5 transition-colors cursor-pointer flex gap-3 items-start ${
+                                  isWarning
+                                    ? isUnread
+                                      ? 'bg-amber-50 border-l-4 border-amber-500 hover:bg-amber-100/50'
+                                      : 'bg-amber-50/30 hover:bg-amber-50/60'
+                                    : isUnread
+                                    ? 'bg-indigo-50/50 hover:bg-indigo-50/80'
+                                    : 'hover:bg-slate-50'
                                 }`}
-                              />
-                              <div className="flex-1">
-                                <h5 className="text-xs font-semibold text-slate-800">{n.title}</h5>
-                                <p className="text-xs text-slate-600 mt-0.5 leading-snug">{n.message}</p>
-                                <span className="text-[10px] text-slate-400 mt-1 block">
-                                  {new Date(n.createdAt).toLocaleDateString([], {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
+                              >
+                                {isWarning ? (
+                                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-1 shrink-0" />
+                                ) : (
+                                  <div
+                                    className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                                      isUnread ? 'bg-indigo-600' : 'bg-transparent'
+                                    }`}
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <h5 className={`text-xs ${isWarning ? 'font-bold text-amber-950' : 'font-semibold text-slate-800'}`}>
+                                      {n.title}
+                                    </h5>
+                                    {isWarning && (
+                                      <span className="text-[9px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded">
+                                        Disciplinary Notice
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className={`text-xs mt-0.5 leading-snug ${isWarning ? 'text-amber-900 font-medium' : 'text-slate-600'}`}>
+                                    {n.message}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400 mt-1 block">
+                                    {new Date(n.createdAt).toLocaleDateString([], {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </div>

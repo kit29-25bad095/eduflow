@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 import {
   BookOpen,
   CheckCircle2,
@@ -15,6 +16,7 @@ import {
   Calendar,
   Heart,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   BarChart,
@@ -28,6 +30,7 @@ import {
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const { notifications = [], markAsRead } = useNotification() || {};
   const [analytics, setAnalytics] = useState(null);
   const [wishlist, setWishlist] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,6 +80,10 @@ export default function StudentDashboard() {
     weeklyActivity = [],
   } = analytics || {};
 
+  const activeWarnings = (notifications || []).filter(
+    (n) => n.type === 'warning' && !n.read && !n.is_read
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Welcome Greeting */}
@@ -97,6 +104,46 @@ export default function StudentDashboard() {
           Browse More Courses
         </Link>
       </div>
+
+      {/* Official Disciplinary Warnings Banner */}
+      {activeWarnings.map((warn) => {
+        const warnId = warn.id || warn._id;
+        return (
+          <div
+            key={warnId}
+            className="p-5 rounded-2xl bg-amber-50 border-2 border-amber-400 shadow-md flex flex-col sm:flex-row items-start justify-between gap-4"
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 bg-amber-100 rounded-xl text-amber-700 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-extrabold text-amber-950 uppercase tracking-wider">
+                    {warn.title || 'Official Disciplinary Warning from Administration'}
+                  </h3>
+                  <span className="text-[10px] font-extrabold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    Urgent Notice
+                  </span>
+                </div>
+                <p className="text-xs text-amber-900 font-medium leading-relaxed max-w-3xl">
+                  {warn.message}
+                </p>
+                <span className="text-[10px] text-amber-700/80 block">
+                  Issued: {new Date(warn.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => markAsRead && markAsRead(warnId)}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm shrink-0 self-end sm:self-center"
+            >
+              Acknowledge Notice
+            </button>
+          </div>
+        );
+      })}
 
       {/* 7 Core Database Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">

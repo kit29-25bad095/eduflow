@@ -16,8 +16,13 @@ export const NotificationProvider = ({ children }) => {
     try {
       const res = await api.get('/notifications');
       if (res.data.success) {
-        setNotifications(res.data.data.notifications || []);
-        setUnreadCount(res.data.data.unreadCount || 0);
+        const raw = res.data.data;
+        const list = Array.isArray(raw) ? raw : (raw?.notifications || []);
+        const unread = typeof raw?.unreadCount === 'number'
+          ? raw.unreadCount
+          : list.filter((n) => !n.read && !n.is_read).length;
+        setNotifications(list);
+        setUnreadCount(unread);
       }
     } catch (err) {
       console.error('Failed to load notifications:', err);
@@ -27,6 +32,7 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
 
       const socket = getSocket();
 
@@ -59,6 +65,7 @@ export const NotificationProvider = ({ children }) => {
       socket.on('submission_graded', handleSubmissionGraded);
 
       return () => {
+        clearInterval(interval);
         socket.off('new_notification', handleNewNotification);
         socket.off('new_submission', handleNewSubmission);
         socket.off('submission_graded', handleSubmissionGraded);
@@ -80,7 +87,7 @@ export const NotificationProvider = ({ children }) => {
     try {
       await api.patch(`/notifications/${id}/read`);
       setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, read: true } : n))
+        prev.map((n) => (n._id === id || n.id === id ? { ...n, read: true, is_read: 1 } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
@@ -91,7 +98,7 @@ export const NotificationProvider = ({ children }) => {
   const markAllAsRead = async () => {
     try {
       await api.patch('/notifications/read-all');
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true, is_read: 1 })));
       setUnreadCount(0);
     } catch (err) {
       console.error('Failed to mark all read:', err);

@@ -34,14 +34,18 @@ public class NotificationHandler implements HttpHandler {
             if ("/api/notifications".equals(path) || "/api/notifications/".equals(path)) {
                 if ("GET".equals(method)) {
                     List<Notification> list = notificationDAO.getNotificationsForUser(userId);
-                    ResponseUtil.sendSuccess(exchange, 200, list, null);
+                    int unreadCount = notificationDAO.getUnreadCount(userId);
+                    JsonObject result = new JsonObject();
+                    result.add("notifications", ResponseUtil.getGson().toJsonTree(list));
+                    result.addProperty("unreadCount", unreadCount);
+                    ResponseUtil.sendSuccess(exchange, 200, result, null);
                 } else {
                     ResponseUtil.sendError(exchange, 405, "Method not allowed", "METHOD_NOT_ALLOWED");
                 }
-            } else if ("/api/notifications/read-all".equals(path) && "PATCH".equals(method)) {
+            } else if ("/api/notifications/read-all".equals(path) && ("PATCH".equals(method) || "POST".equals(method))) {
                 notificationDAO.markAllAsRead(userId);
                 ResponseUtil.sendSuccess(exchange, 200, null, "All notifications marked as read");
-            } else if (path.startsWith("/api/notifications/") && path.endsWith("/read") && "PATCH".equals(method)) {
+            } else if (path.startsWith("/api/notifications/") && path.endsWith("/read") && ("PATCH".equals(method) || "POST".equals(method))) {
                 String sub = path.substring("/api/notifications/".length());
                 String notifId = sub.substring(0, sub.indexOf("/read"));
                 notificationDAO.markAsRead(notifId, userId);
