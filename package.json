@@ -1,0 +1,33 @@
+{
+  "name": "online-lms",
+  "version": "1.0.0",
+  "description": "Full-Stack Online Course Learning Management System with Real Analytics, Progress Tracking, and Real-Time Updates",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "seed": "npm run seed --prefix server",
+    "seed:users": "npm run seed:users --prefix server",
+    "seed:courses": "npm run seed:courses --prefix server",
+    "seed:assignments": "npm run seed:assignments --prefix server",
+    "import:oulad": "npm run import:oulad --prefix server",
+    "test": "npm test --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
+  },
+  "keywords": [
+    "lms",
+    "learning-management-system",
+    "education",
+    "react",
+    "nodejs",
+    "express",
+    "mongodb",
+    "socketio"
+  ],
+  "author": "",
+  "license": "MIT"
+}
