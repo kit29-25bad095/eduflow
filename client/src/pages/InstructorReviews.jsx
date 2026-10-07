@@ -42,7 +42,7 @@ export default function InstructorReviews() {
     try {
       const [revRes, crsRes] = await Promise.all([
         api.get('/reviews/instructor'),
-        api.get('/courses?limit=100'),
+        api.get('/courses/instructor/my-courses'),
       ]);
 
       if (revRes.data.success) {
@@ -215,7 +215,7 @@ export default function InstructorReviews() {
             onChange={(e) => setSelectedCourse(e.target.value)}
             className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white text-slate-700 w-full sm:w-auto"
           >
-            <option value="all">All Courses ({totalReviews})</option>
+            <option value="all">All My Courses ({totalReviews})</option>
             {courses.map((c) => (
               <option key={c.id || c._id} value={c.id || c._id}>
                 {c.title}
