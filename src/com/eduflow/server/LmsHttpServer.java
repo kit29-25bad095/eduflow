@@ -37,6 +37,9 @@ public class LmsHttpServer {
         server.createContext("/api/wishlist", new WishlistHandler());
         server.createContext("/api/quizzes", new QuizHandler());
 
+        // Static Frontend Single-Page App (SPA) Serving
+        server.createContext("/", new StaticFileHandler());
+
         // Health Check
         server.createContext("/api/health", new HttpHandler() {
             @Override

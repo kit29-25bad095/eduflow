@@ -8,9 +8,11 @@ client/dist/
 dist/
 
 # Java Build Artifacts
-java-server/bin/
+bin/
+target/
 *.class
 *.jar
+!lib/*.jar
 !java-server/lib/*.jar
 
 # Database & runtime data

@@ -89,6 +89,10 @@ public class ResponseUtil {
         sendJson(exchange, statusCode, resp);
     }
 
+    public static void sendError(HttpExchange exchange, int statusCode, String message) throws IOException {
+        sendError(exchange, statusCode, message, null);
+    }
+
     public static void sendError(HttpExchange exchange, int statusCode, String message, String errorCode) throws IOException {
         Map<String, Object> resp = new HashMap<>();
         resp.put("success", false);

@@ -1,0 +1,7 @@
+# Mark web client assets as vendored so GitHub recognizes this as a Java project
+client/** linguist-vendored
+*.db binary
+*.jar binary
+*.db-journal binary
+*.db-wal binary
+*.db-shm binary
