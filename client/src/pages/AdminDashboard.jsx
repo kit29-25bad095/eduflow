@@ -38,6 +38,7 @@ export default function AdminDashboard() {
   const [courses, setCourses] = useState([]);
   const [reports, setReports] = useState([]);
   const [activeTab, setActiveTab] = useState('users'); // 'users', 'courses', 'analytics', 'reports'
+  const [reportFilter, setReportFilter] = useState('all'); // 'all', 'pending', 'resolved', 'dismissed'
 
   // User search/filter
   const [userSearch, setUserSearch] = useState('');
@@ -147,11 +148,46 @@ export default function AdminDashboard() {
       const res = await api.post(`/admin/reports/${reportId}/dismiss`);
       if (res.data.success) {
         setReports((prev) =>
-          prev.map((r) => (r.id === reportId ? { ...r, status: 'dismissed' } : r))
+          prev.map((r) => (r.id === reportId ? { ...r, status: 'dismissed', adminNotes: 'Dismissed by administrator' } : r))
         );
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to dismiss report');
+    }
+  };
+
+  const handleIssueWarning = async (reportId) => {
+    const warningMsg = window.prompt(
+      'Enter disciplinary warning notice to send to student:',
+      'You have received an official disciplinary warning regarding inappropriate comments posted on course discussions. Further violations will result in permanent account suspension.'
+    );
+    if (!warningMsg) return;
+
+    try {
+      const res = await api.post(`/admin/reports/${reportId}/warn`, {
+        warningText: warningMsg,
+        adminNotes: 'Formal disciplinary warning issued by administrator.'
+      });
+      if (res.data.success) {
+        setReports((prev) =>
+          prev.map((r) => (r.id === reportId ? { ...r, status: 'resolved', adminNotes: 'Formal disciplinary warning issued' } : r))
+        );
+        alert('Disciplinary warning notification delivered to student.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to issue warning');
+    }
+  };
+
+  const handleDeleteReportComment = async (reportId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this comment from the course page?')) return;
+    try {
+      const res = await api.post(`/admin/reports/${reportId}/delete-comment`);
+      if (res.data.success) {
+        alert('Offending comment removed from course page.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete comment');
     }
   };
 
@@ -601,136 +637,264 @@ export default function AdminDashboard() {
                 Instructor-Flagged Student Reports
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Investigate student policy violations, review offending comments, and suspend abusive accounts with 1-click access control.
+                Review abusive comments flagged by course instructors and take decisive disciplinary action.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                {reports.filter((r) => r.status === 'pending').length} Pending Review
-              </span>
+
+            {/* Status Filter Bar */}
+            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-semibold">
+              <button
+                onClick={() => setReportFilter('all')}
+                className={`px-3 py-1.5 rounded-xl transition-all ${
+                  reportFilter === 'all'
+                    ? 'bg-white text-slate-900 shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All ({reports.length})
+              </button>
+              <button
+                onClick={() => setReportFilter('pending')}
+                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                  reportFilter === 'pending'
+                    ? 'bg-rose-600 text-white shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                Pending ({reports.filter((r) => r.status === 'pending').length})
+              </button>
+              <button
+                onClick={() => setReportFilter('resolved')}
+                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                  reportFilter === 'resolved'
+                    ? 'bg-emerald-600 text-white shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                Resolved ({reports.filter((r) => r.status === 'resolved').length})
+              </button>
+              <button
+                onClick={() => setReportFilter('dismissed')}
+                className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
+                  reportFilter === 'dismissed'
+                    ? 'bg-slate-700 text-white shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Dismissed ({reports.filter((r) => r.status === 'dismissed').length})
+              </button>
             </div>
           </div>
 
-          {reports.length === 0 ? (
+          {reports.filter((r) => reportFilter === 'all' || r.status === reportFilter).length === 0 ? (
             <div className="p-12 text-center space-y-2">
               <ShieldAlert className="w-10 h-10 text-slate-300 mx-auto" />
-              <h4 className="text-sm font-bold text-slate-700">No Abuse Reports Logged</h4>
+              <h4 className="text-sm font-bold text-slate-700">No Reports Found</h4>
               <p className="text-xs text-slate-400">
-                Platform comments are clear! Any reports submitted by course instructors will appear here immediately.
+                {reportFilter === 'all'
+                  ? 'No instructor abuse reports have been logged in the system.'
+                  : `No reports currently match the "${reportFilter}" filter status.`}
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {reports.map((rep) => (
-                <div
-                  key={rep.id}
-                  className={`p-5 rounded-2xl border transition-all space-y-4 ${
-                    rep.status === 'pending'
-                      ? 'border-rose-200/90 bg-rose-50/10 shadow-sm'
-                      : 'border-slate-200 bg-white opacity-80'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
-                        Course: {rep.courseTitle}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        Reported on {new Date(rep.createdAt).toLocaleDateString()}
-                      </span>
+            <div className="space-y-5">
+              {reports
+                .filter((r) => reportFilter === 'all' || r.status === reportFilter)
+                .map((rep) => (
+                  <div
+                    key={rep.id}
+                    className={`p-5 rounded-2xl border transition-all space-y-4 ${
+                      rep.status === 'pending'
+                        ? 'border-rose-200/90 bg-rose-50/15 shadow-sm'
+                        : rep.status === 'resolved'
+                        ? 'border-emerald-200 bg-emerald-50/10'
+                        : 'border-slate-200 bg-slate-50/30'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700">
+                          Course: {rep.courseTitle}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          Reported on {new Date(rep.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            rep.status === 'pending'
+                              ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                              : rep.status === 'resolved'
+                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          Status: {rep.status}
+                        </span>
+                      </div>
                     </div>
 
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        rep.status === 'pending'
-                          ? 'bg-rose-100 text-rose-700'
-                          : rep.status === 'resolved'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      Status: {rep.status}
-                    </span>
-                  </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                      {/* Reported Student Identity */}
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                          Reported Student (Offender)
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={rep.studentImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                            alt={rep.studentName}
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">{rep.studentName}</p>
+                            <p className="text-[11px] text-indigo-600 font-semibold flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-slate-400" />
+                              {rep.studentEmail}
+                            </p>
+                            <span
+                              className={`text-[10px] font-bold uppercase tracking-wider ${
+                                rep.studentActive ? 'text-emerald-600' : 'text-rose-600 font-extrabold'
+                              }`}
+                            >
+                              Account: {rep.studentActive ? 'Active' : 'Suspended / Deactivated'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                    {/* Reported Student Identity */}
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                        Reported Student (Offender)
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={rep.studentImage || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                          alt={rep.studentName}
-                          className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                        />
+                      {/* Reporting Instructor */}
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                          Reporting Instructor
+                        </span>
                         <div>
-                          <p className="text-xs font-bold text-slate-900">{rep.studentName}</p>
-                          <p className="text-[11px] text-indigo-600 font-semibold flex items-center gap-1">
-                            <Mail className="w-3 h-3 text-slate-400" />
-                            {rep.studentEmail}
+                          <p className="text-xs font-bold text-slate-900">{rep.instructorName}</p>
+                          <p className="text-[11px] text-slate-500 font-medium">{rep.instructorEmail}</p>
+                          <p className="text-[11px] text-rose-600 font-semibold mt-1">
+                            Flag Reason: {rep.reason}
                           </p>
-                          <span
-                            className={`text-[10px] font-bold uppercase tracking-wider ${
-                              rep.studentActive ? 'text-emerald-600' : 'text-rose-600 font-extrabold'
-                            }`}
-                          >
-                            Account: {rep.studentActive ? 'Active' : 'Suspended / Deactivated'}
-                          </span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Reporting Instructor */}
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                        Reporting Instructor
-                      </span>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900">{rep.instructorName}</p>
-                        <p className="text-[11px] text-slate-500 font-medium">{rep.instructorEmail}</p>
-                        <p className="text-[11px] text-rose-600 font-semibold mt-1">
-                          Reason: {rep.reason}
-                        </p>
+                    {/* Offending comment snippet */}
+                    {rep.commentSnippet && (
+                      <div className="p-3.5 rounded-xl bg-rose-50/60 border border-rose-200 text-xs text-rose-950">
+                        <span className="font-bold text-rose-800 block text-[11px] mb-1 uppercase tracking-wider">
+                          Offending Comment Content:
+                        </span>
+                        <div className="italic bg-white/70 p-2.5 rounded-lg border border-rose-100 font-medium">
+                          "{rep.commentSnippet}"
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Admin Resolution Summary */}
+                    {rep.adminNotes && (
+                      <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700 flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold block text-[11px] text-slate-900 uppercase tracking-wider">Resolution Details:</span>
+                          <p className="text-slate-600 mt-0.5">{rep.adminNotes}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Clear Multi-Option Disciplinary Action Panel */}
+                    <div className="pt-3 border-t border-slate-100">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <ShieldAlert className="w-3.5 h-3.5 text-indigo-600" />
+                          Administrative Disciplinary Options
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {rep.status === 'pending' ? 'Select an action to resolve this incident:' : 'Current Status: ' + rep.status}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                        {/* Option 1: Suspend Account */}
+                        <button
+                          onClick={() => handleDeactivateReportedUser(rep.id)}
+                          disabled={!rep.studentActive}
+                          className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                            !rep.studentActive
+                              ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                              : 'bg-rose-50/70 border-rose-200 hover:bg-rose-100 hover:border-rose-300 group shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <ShieldAlert className="w-4 h-4 text-rose-600" />
+                            <span className="text-xs font-bold text-rose-900 group-hover:text-rose-950">
+                              {rep.studentActive ? '1. Suspend Account' : 'Account Suspended'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-rose-700/80 leading-snug">
+                            Deactivates student login & revokes platform access.
+                          </p>
+                        </button>
+
+                        {/* Option 2: Issue Official Warning */}
+                        <button
+                          onClick={() => handleIssueWarning(rep.id)}
+                          className="p-3 rounded-xl border bg-amber-50/70 border-amber-200 hover:bg-amber-100 hover:border-amber-300 text-left flex flex-col justify-between transition-all group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <AlertTriangle className="w-4 h-4 text-amber-600" />
+                            <span className="text-xs font-bold text-amber-900 group-hover:text-amber-950">
+                              2. Issue Warning
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-amber-700/80 leading-snug">
+                            Sends formal disciplinary notice to student inbox.
+                          </p>
+                        </button>
+
+                        {/* Option 3: Delete Offending Comment */}
+                        <button
+                          onClick={() => handleDeleteReportComment(rep.id)}
+                          className="p-3 rounded-xl border bg-slate-50 hover:bg-rose-50 hover:border-rose-200 border-slate-200 text-left flex flex-col justify-between transition-all group shadow-sm"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Trash2 className="w-4 h-4 text-slate-600 group-hover:text-rose-600" />
+                            <span className="text-xs font-bold text-slate-800 group-hover:text-rose-900">
+                              3. Delete Comment
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 leading-snug">
+                            Permanently removes review from course discussions.
+                          </p>
+                        </button>
+
+                        {/* Option 4: Dismiss Incident */}
+                        <button
+                          onClick={() => handleDismissReport(rep.id)}
+                          disabled={rep.status === 'dismissed'}
+                          className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                            rep.status === 'dismissed'
+                              ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
+                              : 'bg-slate-50 border-slate-200 hover:bg-slate-100 group shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <X className="w-4 h-4 text-slate-500" />
+                            <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900">
+                              {rep.status === 'dismissed' ? 'Report Dismissed' : '4. Dismiss Report'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 leading-snug">
+                            Closes incident without penalty if no policy violation.
+                          </p>
+                        </button>
                       </div>
                     </div>
                   </div>
-
-                  {/* Offending comment snippet */}
-                  {rep.commentSnippet && (
-                    <div className="p-3.5 rounded-xl bg-rose-50/40 border border-rose-100 text-xs text-rose-950 italic">
-                      <span className="font-bold not-italic text-rose-800 block text-[11px] mb-0.5">Reported Comment Snippet:</span>
-                      "{rep.commentSnippet}"
-                    </div>
-                  )}
-
-                  {rep.adminNotes && (
-                    <p className="text-[11px] text-slate-500 bg-slate-100 p-2 rounded-lg">
-                      <strong className="text-slate-700">Admin Notes:</strong> {rep.adminNotes}
-                    </p>
-                  )}
-
-                  {/* Action buttons */}
-                  {rep.status === 'pending' && (
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                      <button
-                        onClick={() => handleDismissReport(rep.id)}
-                        className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold transition-colors"
-                      >
-                        Dismiss Report
-                      </button>
-                      <button
-                        onClick={() => handleDeactivateReportedUser(rep.id)}
-                        className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
-                      >
-                        <ShieldAlert className="w-3.5 h-3.5" />
-                        Deactivate Student Account
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>

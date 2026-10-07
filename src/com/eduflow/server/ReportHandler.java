@@ -87,6 +87,49 @@ public class ReportHandler implements HttpHandler {
                 } else {
                     ResponseUtil.sendError(exchange, 404, "Report not found", "NOT_FOUND");
                 }
+            } else if (path.matches("^/api/admin/reports/[^/]+/warn$") && "POST".equals(method)) {
+                // POST /api/admin/reports/:id/warn
+                String[] parts = path.split("/");
+                String reportId = parts[4];
+
+                String body = ResponseUtil.readRequestBody(exchange);
+                String adminNotes = "Official disciplinary warning issued to student.";
+                String warningText = "You have received an official disciplinary warning regarding inappropriate comments posted on course discussions. Further violations will result in permanent account suspension.";
+
+                if (body != null && !body.trim().isEmpty()) {
+                    try {
+                        JsonObject json = ResponseUtil.getGson().fromJson(body, JsonObject.class);
+                        if (json != null && json.has("adminNotes")) {
+                            adminNotes = json.get("adminNotes").getAsString();
+                        }
+                        if (json != null && json.has("warningText")) {
+                            warningText = json.get("warningText").getAsString();
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                AbuseReport report = reportDAO.getReportById(reportId);
+                if (report != null) {
+                    com.eduflow.dao.NotificationDAO notifDAO = new com.eduflow.dao.NotificationDAO();
+                    notifDAO.createNotification(report.getStudentId(), "warning", "Disciplinary Warning: Policy Violation", warningText);
+                    reportDAO.resolveReport(reportId, "resolved", adminNotes);
+                    ResponseUtil.sendSuccess(exchange, 200, null, "Warning issued to student and report marked as resolved");
+                } else {
+                    ResponseUtil.sendError(exchange, 404, "Report not found", "NOT_FOUND");
+                }
+            } else if (path.matches("^/api/admin/reports/[^/]+/delete-comment$") && "POST".equals(method)) {
+                // POST /api/admin/reports/:id/delete-comment
+                String[] parts = path.split("/");
+                String reportId = parts[4];
+
+                AbuseReport report = reportDAO.getReportById(reportId);
+                if (report != null && report.getReviewId() != null && !report.getReviewId().isEmpty()) {
+                    com.eduflow.dao.ReviewDAO reviewDAO = new com.eduflow.dao.ReviewDAO();
+                    reviewDAO.deleteReview(report.getReviewId(), claims.get("id").getAsString(), true);
+                    ResponseUtil.sendSuccess(exchange, 200, null, "Offending comment deleted successfully");
+                } else {
+                    ResponseUtil.sendError(exchange, 404, "Report or linked review not found", "NOT_FOUND");
+                }
             } else if (path.matches("^/api/admin/reports/[^/]+/resolve$") && "POST".equals(method)) {
                 // POST /api/admin/reports/:id/resolve
                 String[] parts = path.split("/");
