@@ -425,17 +425,24 @@ export default function AdminDashboard() {
       {/* Tab 3: Analytics Distribution */}
       {activeTab === 'analytics' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Curricula by Subject Discipline</h3>
-            <p className="text-xs text-slate-400">Distribution of active platform courses</p>
-            <div className="h-64 w-full">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900">Curricula by Subject Discipline</h3>
+                <span className="text-[11px] font-semibold text-slate-400">Total Courses: {totalCourses}</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">Distribution of active platform courses</p>
+            </div>
+            <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryDistribution} layout="vertical" margin={{ left: 40, right: 20 }}>
+                <BarChart data={categoryDistribution} layout="vertical" margin={{ left: 10, right: 20, top: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={120} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fill: '#64748b' }} width={120} axisLine={false} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px', border: 'none' }}
+                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)' }}
+                    itemStyle={{ color: '#f8fafc', fontSize: '11px', fontWeight: 'bold' }}
+                    labelStyle={{ color: '#94a3b8', fontSize: '11px', marginBottom: '2px' }}
                   />
                   <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -443,23 +450,29 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Platform User Composition</h3>
-            <p className="text-xs text-slate-400">Student vs Instructor proportion</p>
-            <div className="h-64 w-full flex items-center justify-center">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-900">Platform User Composition</h3>
+                <span className="text-[11px] font-semibold text-slate-400">Total Accounts: {totalUsers}</span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">Student vs Instructor vs Admin distribution</p>
+            </div>
+
+            <div className="h-48 w-full flex items-center justify-center relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Students', value: studentsCount },
-                      { name: 'Instructors', value: instructorsCount },
-                      { name: 'Admins', value: totalUsers - studentsCount - instructorsCount },
+                      { name: 'Students', value: studentsCount, color: '#6366f1' },
+                      { name: 'Instructors', value: instructorsCount, color: '#8b5cf6' },
+                      { name: 'Admins', value: Math.max(0, totalUsers - studentsCount - instructorsCount), color: '#f59e0b' },
                     ]}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
+                    innerRadius={55}
+                    outerRadius={80}
+                    paddingAngle={4}
                     dataKey="value"
                   >
                     <Cell fill="#6366f1" />
@@ -467,10 +480,55 @@ export default function AdminDashboard() {
                     <Cell fill="#f59e0b" />
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px', border: 'none' }}
+                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)' }}
+                    itemStyle={{ color: '#f8fafc', fontSize: '11px', fontWeight: 'bold' }}
+                    labelStyle={{ color: '#94a3b8', fontSize: '11px', marginBottom: '2px' }}
+                    formatter={(val, name) => [`${val} accounts (${((val / (totalUsers || 1)) * 100).toFixed(1)}%)`, name]}
                   />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-xl font-extrabold text-slate-900">{totalUsers}</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Users</span>
+              </div>
+            </div>
+
+            {/* Clear Role Breakdown & Legend */}
+            <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-slate-100">
+              <div className="p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-100/80 text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-slate-700">Students</span>
+                </div>
+                <p className="text-base font-extrabold text-indigo-700">{studentsCount}</p>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {((studentsCount / (totalUsers || 1)) * 100).toFixed(1)}%
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-100/80 text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                  <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0" />
+                  <span className="text-[11px] font-bold text-slate-700">Instructors</span>
+                </div>
+                <p className="text-base font-extrabold text-purple-700">{instructorsCount}</p>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {((instructorsCount / (totalUsers || 1)) * 100).toFixed(1)}%
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-100/80 text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span className="text-[11px] font-bold text-slate-700">Admins</span>
+                </div>
+                <p className="text-base font-extrabold text-amber-700">
+                  {Math.max(0, totalUsers - studentsCount - instructorsCount)}
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  {(((Math.max(0, totalUsers - studentsCount - instructorsCount)) / (totalUsers || 1)) * 100).toFixed(1)}%
+                </p>
+              </div>
             </div>
           </div>
         </div>
