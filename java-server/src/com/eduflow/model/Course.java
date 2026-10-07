@@ -20,6 +20,9 @@ public class Course {
     private double ratingAvg;
     private int ratingCount;
     private int enrolledCount;
+    private String skills;
+    private String tags;
+    private int relevanceScore;
     private String createdAt;
 
     // Associated populated entities for frontend compatibility
@@ -109,6 +112,15 @@ public class Course {
 
     public boolean isEnrolled() { return isEnrolled; }
     public void setEnrolled(boolean enrolled) { isEnrolled = enrolled; }
+
+    public String getSkills() { return skills != null ? skills : ""; }
+    public void setSkills(String skills) { this.skills = skills; }
+
+    public String getTags() { return tags != null ? tags : ""; }
+    public void setTags(String tags) { this.tags = tags; }
+
+    public int getRelevanceScore() { return relevanceScore; }
+    public void setRelevanceScore(int relevanceScore) { this.relevanceScore = relevanceScore; }
 
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }

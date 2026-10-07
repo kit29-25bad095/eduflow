@@ -8,14 +8,16 @@ import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import com.eduflow.dao.UserDAO;
+import com.eduflow.model.User;
+
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class CourseHandler implements HttpHandler {
     private final CourseDAO courseDAO = new CourseDAO();
+    private final UserDAO userDAO = new UserDAO();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -33,6 +35,8 @@ public class CourseHandler implements HttpHandler {
                 } else {
                     ResponseUtil.sendError(exchange, 405, "Method not allowed", "METHOD_NOT_ALLOWED");
                 }
+            } else if ("/api/courses/recommended".equals(path) && "GET".equals(method)) {
+                handleRecommendedCourses(exchange);
             } else if ("/api/courses/instructor/my-courses".equals(path) && "GET".equals(method)) {
                 handleMyCourses(exchange);
             } else if (path.startsWith("/api/courses/")) {
@@ -188,5 +192,41 @@ public class CourseHandler implements HttpHandler {
 
         courseDAO.updateStatus(courseId, newStatus);
         ResponseUtil.sendSuccess(exchange, 200, null, "Course status updated to " + newStatus);
+    }
+
+    private void handleRecommendedCourses(HttpExchange exchange) throws IOException, SQLException {
+        String token = ResponseUtil.getAuthToken(exchange);
+        JsonObject claims = JwtUtil.verifyToken(token);
+        if (claims == null) {
+            ResponseUtil.sendError(exchange, 401, "Unauthorized: Please log in to see personalized recommendations", "UNAUTHORIZED");
+            return;
+        }
+
+        String studentId = claims.get("id").getAsString();
+        User user = userDAO.findById(studentId);
+
+        String rawInterests = (user != null && user.getCourseInterests() != null) ? user.getCourseInterests().trim() : "";
+        boolean hasInterests = !rawInterests.isEmpty();
+
+        List<String> interestsList = new ArrayList<>();
+        if (hasInterests) {
+            for (String item : rawInterests.split("[,;]")) {
+                String trimmed = item.trim();
+                if (!trimmed.isEmpty()) {
+                    interestsList.add(trimmed);
+                }
+            }
+        }
+
+        List<Course> recommended = hasInterests
+                ? courseDAO.getRecommendedCoursesForStudent(studentId)
+                : Collections.emptyList();
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("hasInterests", hasInterests);
+        data.put("interests", interestsList);
+        data.put("courses", recommended);
+
+        ResponseUtil.sendSuccess(exchange, 200, data, "Recommended courses retrieved successfully");
     }
 }

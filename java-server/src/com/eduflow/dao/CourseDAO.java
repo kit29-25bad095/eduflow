@@ -318,9 +318,185 @@ public class CourseDAO {
         inst.setId(rs.getString("instructor_id"));
         inst.setName(rs.getString("instructor_name"));
         inst.setProfileImage(rs.getString("instructor_image"));
-        inst.setBio(rs.getString("instructor_bio"));
+        try { inst.setBio(rs.getString("instructor_bio")); } catch (Exception ignored) {}
         c.setInstructor(inst);
+        try { c.setSkills(rs.getString("skills")); } catch (Exception ignored) {}
+        try { c.setTags(rs.getString("tags")); } catch (Exception ignored) {}
 
         return c;
+    }
+
+    public List<Course> getRecommendedCoursesForStudent(String studentId) throws SQLException {
+        String courseInterests = "";
+        String sqlUser = "SELECT course_interests FROM users WHERE id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sqlUser)) {
+            pstmt.setString(1, studentId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    courseInterests = rs.getString("course_interests");
+                }
+            }
+        }
+
+        if (courseInterests == null || courseInterests.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Fetch completed course IDs to exclude
+        Set<String> completedCourseIds = new HashSet<>();
+        String sqlCompleted = """
+            SELECT course_id FROM enrollments WHERE student_id = ? AND (status = 'completed' OR completed_at IS NOT NULL)
+            UNION
+            SELECT course_id FROM certificates WHERE student_id = ?
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sqlCompleted)) {
+            pstmt.setString(1, studentId);
+            pstmt.setString(2, studentId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    completedCourseIds.add(rs.getString("course_id"));
+                }
+            }
+        }
+
+        // Fetch all published courses
+        List<Course> publishedCourses = new ArrayList<>();
+        String sqlCourses = """
+            SELECT c.*, u.name as instructor_name, u.profile_image as instructor_image, u.bio as instructor_bio
+            FROM courses c
+            JOIN users u ON c.instructor_id = u.id
+            WHERE c.status = 'published'
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sqlCourses)) {
+            while (rs.next()) {
+                publishedCourses.add(mapCourseWithInstructor(rs));
+            }
+        }
+
+        // Parse student interests
+        List<String> interests = new ArrayList<>();
+        for (String raw : courseInterests.split("[,;]")) {
+            String trimmed = raw.trim().toLowerCase();
+            if (!trimmed.isEmpty()) {
+                interests.add(trimmed);
+            }
+        }
+
+        if (interests.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Calculate relevance scores
+        List<Course> scoredCourses = new ArrayList<>();
+        for (Course c : publishedCourses) {
+            // Exclude completed courses
+            if (completedCourseIds.contains(c.getId())) {
+                continue;
+            }
+
+            int score = calculateRelevanceScore(c, interests);
+            if (score > 0) {
+                c.setRelevanceScore(score);
+                scoredCourses.add(c);
+            }
+        }
+
+        // Sort descending by relevance score, tie-breaking by popularity
+        scoredCourses.sort((a, b) -> {
+            int cmp = Integer.compare(b.getRelevanceScore(), a.getRelevanceScore());
+            if (cmp != 0) return cmp;
+            return Integer.compare(b.getEnrolledCount(), a.getEnrolledCount());
+        });
+
+        // Return top 6 to 8 courses
+        int maxLimit = Math.min(8, scoredCourses.size());
+        return new ArrayList<>(scoredCourses.subList(0, maxLimit));
+    }
+
+    private int calculateRelevanceScore(Course course, List<String> interests) {
+        int score = 0;
+        String category = course.getCategory() != null ? course.getCategory().trim().toLowerCase() : "";
+        String tagsStr = course.getTags() != null ? course.getTags() : "";
+        String skillsStr = course.getSkills() != null ? course.getSkills() : "";
+
+        // 1. Category match (+5)
+        boolean catMatched = false;
+        for (String interest : interests) {
+            if (interest.isEmpty()) continue;
+            if (isInterestMatch(category, interest)) {
+                catMatched = true;
+                break;
+            }
+        }
+        if (catMatched) {
+            score += 5;
+        }
+
+        // 2. Each tag match (+3)
+        if (!tagsStr.isEmpty()) {
+            String[] tags = tagsStr.split("[,;]");
+            for (String tag : tags) {
+                String cleanTag = tag.trim().toLowerCase();
+                if (cleanTag.isEmpty()) continue;
+                for (String interest : interests) {
+                    if (isInterestMatch(cleanTag, interest)) {
+                        score += 3;
+                        break; // count each tag match once
+                    }
+                }
+            }
+        }
+
+        // 3. Each skill match (+2)
+        if (!skillsStr.isEmpty()) {
+            String[] skills = skillsStr.split("[,;]");
+            for (String skill : skills) {
+                String cleanSkill = skill.trim().toLowerCase();
+                if (cleanSkill.isEmpty()) continue;
+                for (String interest : interests) {
+                    if (isInterestMatch(cleanSkill, interest)) {
+                        score += 2;
+                        break; // count each skill match once
+                    }
+                }
+            }
+        }
+
+        return score;
+    }
+
+    private boolean isInterestMatch(String text, String interest) {
+        if (text.equals(interest) || text.contains(interest) || interest.contains(text)) {
+            return true;
+        }
+        // Aliases
+        if ((interest.equals("ai") || interest.contains("artificial intelligence"))
+                && (text.contains("ai") || text.contains("artificial intelligence") || text.contains("neural") || text.contains("deep learning"))) {
+            return true;
+        }
+        if ((interest.equals("ml") || interest.contains("machine learning"))
+                && (text.contains("ml") || text.contains("machine learning") || text.contains("scikit"))) {
+            return true;
+        }
+        if (interest.contains("gen") && interest.contains("ai") && text.contains("generative")) {
+            return true;
+        }
+        if (interest.contains("database") && (text.contains("sql") || text.contains("database") || text.contains("postgres") || text.contains("relational"))) {
+            return true;
+        }
+        if (interest.contains("cloud") && (text.contains("aws") || text.contains("cloud") || text.contains("devops"))) {
+            return true;
+        }
+        if (interest.contains("web") && (text.contains("react") || text.contains("web") || text.contains("full-stack") || text.contains("frontend") || text.contains("node"))) {
+            return true;
+        }
+        if (interest.contains("cyber") && (text.contains("security") || text.contains("hacking") || text.contains("owasp") || text.contains("pentest"))) {
+            return true;
+        }
+        return false;
     }
 }
