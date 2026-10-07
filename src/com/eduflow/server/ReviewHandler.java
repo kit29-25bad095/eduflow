@@ -65,7 +65,10 @@ public class ReviewHandler implements HttpHandler {
                         return;
                     }
                     String userId = claims.get("id").getAsString();
-                    List<CourseReview> list = reviewDAO.getReviewsForInstructor(userId);
+                    String role = claims.has("role") ? claims.get("role").getAsString() : "";
+                    boolean isAdmin = "admin".equalsIgnoreCase(role);
+
+                    List<CourseReview> list = reviewDAO.getReviewsForInstructor(userId, isAdmin);
                     ResponseUtil.sendSuccess(exchange, 200, list, null);
                 } else {
                     ResponseUtil.sendError(exchange, 405, "Method not allowed", "METHOD_NOT_ALLOWED");
@@ -74,6 +77,71 @@ public class ReviewHandler implements HttpHandler {
                 String courseId = path.substring("/api/reviews/course/".length());
                 List<CourseReview> list = reviewDAO.getReviewsForCourse(courseId);
                 ResponseUtil.sendSuccess(exchange, 200, list, null);
+            } else if (path.matches("^/api/reviews/[^/]+/report$") && "POST".equals(method)) {
+                // POST /api/reviews/:id/report
+                String token = ResponseUtil.getAuthToken(exchange);
+                JsonObject claims = JwtUtil.verifyToken(token);
+                if (claims == null) {
+                    ResponseUtil.sendError(exchange, 401, "Unauthorized", "UNAUTHORIZED");
+                    return;
+                }
+                String userId = claims.get("id").getAsString();
+                String role = claims.has("role") ? claims.get("role").getAsString() : "";
+                if (!"instructor".equalsIgnoreCase(role) && !"admin".equalsIgnoreCase(role)) {
+                    ResponseUtil.sendError(exchange, 403, "Only instructors or admins can report comments", "FORBIDDEN");
+                    return;
+                }
+
+                String[] parts = path.split("/");
+                String reviewId = parts[3];
+
+                CourseReview review = reviewDAO.getReviewById(reviewId);
+                if (review == null) {
+                    ResponseUtil.sendError(exchange, 404, "Review not found", "NOT_FOUND");
+                    return;
+                }
+
+                String body = ResponseUtil.readRequestBody(exchange);
+                String reason = "Abusive Comments / Policy Violation";
+                if (body != null && !body.trim().isEmpty()) {
+                    try {
+                        JsonObject json = ResponseUtil.getGson().fromJson(body, JsonObject.class);
+                        if (json != null && json.has("reason")) {
+                            reason = json.get("reason").getAsString();
+                        }
+                    } catch (Exception ignored) {}
+                }
+
+                com.eduflow.dao.AbuseReportDAO reportDAO = new com.eduflow.dao.AbuseReportDAO();
+                com.eduflow.model.AbuseReport report = reportDAO.createReport(
+                    review.getId(),
+                    review.getCourseId(),
+                    review.getStudentId(),
+                    userId,
+                    reason,
+                    review.getComment()
+                );
+
+                ResponseUtil.sendSuccess(exchange, 201, report, "Review reported to system administrator for moderation");
+            } else if (path.matches("^/api/reviews/[^/]+$") && "DELETE".equals(method)) {
+                // DELETE /api/reviews/:id
+                String token = ResponseUtil.getAuthToken(exchange);
+                JsonObject claims = JwtUtil.verifyToken(token);
+                if (claims == null) {
+                    ResponseUtil.sendError(exchange, 401, "Unauthorized", "UNAUTHORIZED");
+                    return;
+                }
+                String userId = claims.get("id").getAsString();
+                String role = claims.has("role") ? claims.get("role").getAsString() : "";
+                boolean isAdmin = "admin".equalsIgnoreCase(role);
+
+                String reviewId = path.substring("/api/reviews/".length());
+                boolean deleted = reviewDAO.deleteReview(reviewId, userId, isAdmin);
+                if (deleted) {
+                    ResponseUtil.sendSuccess(exchange, 200, null, "Comment deleted successfully");
+                } else {
+                    ResponseUtil.sendError(exchange, 403, "Not authorized to delete this review or review not found", "FORBIDDEN");
+                }
             } else {
                 ResponseUtil.sendError(exchange, 404, "Endpoint not found: " + path, "NOT_FOUND");
             }

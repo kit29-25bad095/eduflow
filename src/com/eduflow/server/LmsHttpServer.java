@@ -36,6 +36,7 @@ public class LmsHttpServer {
         server.createContext("/api/certificates", new CertificateHandler());
         server.createContext("/api/wishlist", new WishlistHandler());
         server.createContext("/api/quizzes", new QuizHandler());
+        server.createContext("/api/admin/reports", new ReportHandler());
 
         // Static Frontend Single-Page App (SPA) Serving
         server.createContext("/", new StaticFileHandler());

@@ -335,6 +335,24 @@ public class DatabaseManager {
                 );
             """);
 
+            // 17. Abuse Reports Table (Instructor moderation & reporting to Admin)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS abuse_reports (
+                    id TEXT PRIMARY KEY,
+                    review_id TEXT,
+                    course_id TEXT NOT NULL,
+                    student_id TEXT NOT NULL,
+                    instructor_id TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    comment_snippet TEXT DEFAULT '',
+                    status TEXT DEFAULT 'pending',
+                    admin_notes TEXT DEFAULT '',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+                );
+            """);
+
             populateCourseTagsAndCatalog(conn);
             seedQuizzesAndResources(conn);
 

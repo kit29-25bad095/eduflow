@@ -14,6 +14,7 @@ import {
   ClipboardList,
   CheckCircle2,
   Search,
+  MessageSquare,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -120,6 +121,13 @@ export default function Navbar() {
                   >
                     <ClipboardList className="w-4 h-4" />
                     Submissions
+                  </Link>
+                  <Link
+                    to="/instructor/reviews"
+                    className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Reviews & Feedback
                   </Link>
                   <Link
                     to="/instructor/courses/new"

@@ -86,33 +86,109 @@ public class ReviewDAO {
         return list;
     }
 
-    public List<CourseReview> getReviewsForInstructor(String instructorId) throws SQLException {
+    public CourseReview getReviewById(String reviewId) throws SQLException {
         String sql = """
-            SELECT r.*, u.name as student_name, u.profile_image, c.title as course_title
+            SELECT r.*, u.name as student_name, u.email as student_email, u.profile_image, c.title as course_title, c.instructor_id
             FROM reviews r
             JOIN users u ON r.student_id = u.id
             JOIN courses c ON r.course_id = c.id
-            WHERE c.instructor_id = ?
+            WHERE r.id = ?
+        """;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, reviewId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    CourseReview cr = mapRow(rs);
+                    User student = new User();
+                    student.setId(cr.getStudentId());
+                    student.setName(rs.getString("student_name"));
+                    student.setEmail(rs.getString("student_email"));
+                    student.setProfileImage(rs.getString("profile_image"));
+                    cr.setStudent(student);
+                    cr.setCourseTitle(rs.getString("course_title"));
+                    return cr;
+                }
+            }
+        }
+        return null;
+    }
+
+    public List<CourseReview> getReviewsForInstructor(String instructorId, boolean isAdmin) throws SQLException {
+        String sql = """
+            SELECT r.*, u.name as student_name, u.email as student_email, u.profile_image, c.title as course_title,
+                   (SELECT COUNT(*) FROM abuse_reports ar WHERE ar.review_id = r.id) as report_count,
+                   (SELECT status FROM abuse_reports ar WHERE ar.review_id = r.id LIMIT 1) as report_status
+            FROM reviews r
+            JOIN users u ON r.student_id = u.id
+            JOIN courses c ON r.course_id = c.id
+            WHERE ? = 1 OR c.instructor_id = ?
             ORDER BY r.created_at DESC
         """;
         List<CourseReview> list = new ArrayList<>();
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, instructorId);
+            ps.setInt(1, isAdmin ? 1 : 0);
+            ps.setString(2, instructorId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     CourseReview cr = mapRow(rs);
                     User student = new User();
                     student.setId(cr.getStudentId());
                     student.setName(rs.getString("student_name"));
+                    student.setEmail(rs.getString("student_email"));
                     student.setProfileImage(rs.getString("profile_image"));
                     cr.setStudent(student);
                     cr.setCourseTitle(rs.getString("course_title"));
+                    cr.setReported(rs.getInt("report_count") > 0);
+                    cr.setReportStatus(rs.getString("report_status") != null ? rs.getString("report_status") : "");
                     list.add(cr);
                 }
             }
         }
         return list;
+    }
+
+    public boolean deleteReview(String reviewId, String userId, boolean isAdmin) throws SQLException {
+        String findSql = "SELECT course_id, student_id FROM reviews WHERE id = ?";
+        String courseId = null;
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(findSql)) {
+            ps.setString(1, reviewId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    courseId = rs.getString("course_id");
+                }
+            }
+        }
+        if (courseId == null) return false;
+
+        // Verify authorization: admin, or instructor of the course
+        if (!isAdmin) {
+            String checkInstructor = "SELECT 1 FROM courses WHERE id = ? AND instructor_id = ?";
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(checkInstructor)) {
+                ps.setString(1, courseId);
+                ps.setString(2, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return false; // Not authorized
+                    }
+                }
+            }
+        }
+
+        String deleteSql = "DELETE FROM reviews WHERE id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(deleteSql)) {
+            ps.setString(1, reviewId);
+            int rows = ps.executeUpdate();
+            if (rows > 0) {
+                recalculateCourseRating(courseId);
+                return true;
+            }
+        }
+        return false;
     }
 
     private void recalculateCourseRating(String courseId) throws SQLException {

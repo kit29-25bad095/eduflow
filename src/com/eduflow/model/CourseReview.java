@@ -48,4 +48,13 @@ public class CourseReview {
 
     public String getCourseTitle() { return courseTitle; }
     public void setCourseTitle(String courseTitle) { this.courseTitle = courseTitle; }
+
+    private boolean isReported = false;
+    private String reportStatus = "";
+
+    public boolean isReported() { return isReported; }
+    public void setReported(boolean reported) { isReported = reported; }
+
+    public String getReportStatus() { return reportStatus; }
+    public void setReportStatus(String reportStatus) { this.reportStatus = reportStatus; }
 }

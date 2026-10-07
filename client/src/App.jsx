@@ -24,6 +24,7 @@ import CertificateVerification from './pages/CertificateVerification';
 import InstructorDashboard from './pages/InstructorDashboard';
 import CourseEditor from './pages/CourseEditor';
 import InstructorSubmissions from './pages/InstructorSubmissions';
+import InstructorReviews from './pages/InstructorReviews';
 
 // Admin Pages
 import AdminDashboard from './pages/AdminDashboard';
@@ -122,6 +123,14 @@ export default function App() {
                 element={
                   <ProtectedRoute allowedRoles={['instructor', 'admin']}>
                     <InstructorSubmissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="instructor/reviews"
+                element={
+                  <ProtectedRoute allowedRoles={['instructor', 'admin']}>
+                    <InstructorReviews />
                   </ProtectedRoute>
                 }
               />
