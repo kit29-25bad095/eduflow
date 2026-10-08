@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import MainLayout from './layouts/MainLayout';
 import ProtectedRoute from './routes/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages
 import Home from './pages/Home';
@@ -34,7 +35,8 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <NotificationProvider>
-          <Routes>
+          <ErrorBoundary>
+            <Routes>
             {/* Fullscreen player without default nav/footer */}
             <Route
               path="/student/courses/:courseId/learn"
@@ -149,8 +151,9 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
-        </NotificationProvider>
-      </AuthProvider>
+        </ErrorBoundary>
+      </NotificationProvider>
+    </AuthProvider>
     </BrowserRouter>
   );
 }

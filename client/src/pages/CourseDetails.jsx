@@ -296,9 +296,16 @@ export default function CourseDetails() {
     setExpandedModules(nextState);
   };
 
+  // Normalize skills list into an array whether string or array
+  const skillsList = course?.skills
+    ? Array.isArray(course.skills)
+      ? course.skills
+      : course.skills.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+
   // Derived learning objectives
-  const learningOutcomes = course.skills?.length > 0
-    ? course.skills.map((s) => `Master core foundations and production patterns for ${s}`)
+  const learningOutcomes = skillsList.length > 0
+    ? skillsList.map((s) => `Master core foundations and production patterns for ${s}`)
     : [
         'Build production-ready architectures from scratch with real code',
         'Implement robust data models, transaction safety, and persistent storage',
@@ -546,13 +553,13 @@ export default function CourseDetails() {
             </div>
 
             {/* Skills Pills */}
-            {course.skills?.length > 0 && (
+            {skillsList.length > 0 && (
               <div className="pt-4 border-t border-slate-100">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
                   Target Competencies & Tooling
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {course.skills.map((skill) => (
+                  {skillsList.map((skill) => (
                     <span
                       key={skill}
                       className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200/60"
@@ -586,110 +593,124 @@ export default function CourseDetails() {
             </div>
 
             <div className="space-y-3">
-              {course.modules?.map((mod, idx) => {
-                const isExpanded = !!expandedModules[mod._id];
-                const modDuration = mod.lessons?.reduce((acc, l) => acc + (l.duration || 10), 0) || 0;
+              {course.modules && course.modules.length > 0 ? (
+                course.modules.map((mod, idx) => {
+                  const modId = mod._id || mod.id || `mod-${idx}`;
+                  const isExpanded = !!expandedModules[modId];
+                  const modDuration = mod.lessons?.reduce((acc, l) => acc + (l.duration || 10), 0) || 0;
 
-                return (
-                  <div
-                    key={mod._id}
-                    className="rounded-xl border border-slate-200/90 overflow-hidden bg-white"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleModule(mod._id)}
-                      className="w-full bg-slate-50/80 hover:bg-slate-100/80 p-4 border-b border-slate-200/80 flex items-center justify-between text-left transition-colors"
+                  return (
+                    <div
+                      key={modId}
+                      className="rounded-xl border border-slate-200/90 overflow-hidden bg-white"
                     >
-                      <div className="pr-4">
-                        <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          <span className="text-indigo-600 font-extrabold">Module {idx + 1}:</span> {mod.title}
-                        </h4>
-                        {mod.description && (
-                          <p className="text-xs text-slate-500 mt-0.5">{mod.description}</p>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0 flex items-center gap-3">
-                        <span className="text-xs text-slate-500 font-medium">
-                          {mod.lessons?.length || 0} lectures • {modDuration}m
-                        </span>
-                        <span className="text-slate-400 font-bold text-xs">
-                          {isExpanded ? '▲' : '▼'}
-                        </span>
-                      </div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleModule(modId)}
+                        className="w-full bg-slate-50/80 hover:bg-slate-100/80 p-4 border-b border-slate-200/80 flex items-center justify-between text-left transition-colors"
+                      >
+                        <div className="pr-4">
+                          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span className="text-indigo-600 font-extrabold">Module {idx + 1}:</span> {mod.title}
+                          </h4>
+                          {mod.description && (
+                            <p className="text-xs text-slate-500 mt-0.5">{mod.description}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0 flex items-center gap-3">
+                          <span className="text-xs text-slate-500 font-medium">
+                            {mod.lessons?.length || 0} lectures • {modDuration}m
+                          </span>
+                          <span className="text-slate-400 font-bold text-xs">
+                            {isExpanded ? '▲' : '▼'}
+                          </span>
+                        </div>
+                      </button>
 
-                    {isExpanded && (
-                      <div className="divide-y divide-slate-100 bg-white">
-                        {mod.lessons?.map((lesson, lIdx) => (
-                          <div
-                            key={lesson._id}
-                            className="p-3.5 px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              {lesson.isPreview ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setActivePreviewLesson(lesson)}
-                                  className="text-indigo-600 hover:text-indigo-800 flex items-center gap-2 group text-left"
-                                >
-                                  <PlayCircle className="w-4 h-4 text-indigo-600 shrink-0" />
-                                  <span className="text-xs font-semibold group-hover:underline text-slate-800">
-                                    {lesson.title}
-                                  </span>
-                                </button>
-                              ) : (
-                                <div className="flex items-center gap-2 text-slate-400">
-                                  <Lock className="w-3.5 h-3.5 shrink-0" />
-                                  <span className="text-xs font-medium text-slate-600">
-                                    {lesson.title}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2.5 text-xs">
-                              {lesson.isPreview && (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-200/60">
-                                    Free Preview
-                                  </span>
-                                )}
-                                <span className="text-slate-400 font-medium">{lesson.duration || 10} min</span>
-                              </div>
-                            </div>
-                          ))}
-                        {courseQuizzes
-                          ?.filter((q) => q.moduleId === mod._id || (!q.moduleId && idx === (course.modules?.length || 1) - 1))
-                          .map((quiz) => (
-                            <div
-                              key={quiz.id}
-                              className="p-3.5 px-4 flex items-center justify-between bg-violet-50/40 hover:bg-violet-50/70 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <HelpCircle className="w-4 h-4 text-violet-600 shrink-0" />
-                                <div>
-                                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                    {quiz.title}
-                                    <span className="text-[10px] uppercase font-bold text-violet-600 bg-violet-100/80 px-1.5 py-0.5 rounded">
-                                      Quiz
-                                    </span>
-                                  </span>
-                                  {quiz.description && (
-                                    <p className="text-[11px] text-slate-500 line-clamp-1">{quiz.description}</p>
+                      {isExpanded && (
+                        <div className="divide-y divide-slate-100 bg-white">
+                          {mod.lessons?.map((lesson, lIdx) => {
+                            const lessonId = lesson._id || lesson.id || `les-${lIdx}`;
+                            return (
+                              <div
+                                key={lessonId}
+                                className="p-3.5 px-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {lesson.isPreview ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setActivePreviewLesson(lesson)}
+                                      className="text-indigo-600 hover:text-indigo-800 flex items-center gap-2 group text-left"
+                                    >
+                                      <PlayCircle className="w-4 h-4 text-indigo-600 shrink-0" />
+                                      <span className="text-xs font-semibold group-hover:underline text-slate-800">
+                                        {lesson.title}
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <div className="flex items-center gap-2 text-slate-400">
+                                      <Lock className="w-3.5 h-3.5 shrink-0" />
+                                      <span className="text-xs font-medium text-slate-600">
+                                        {lesson.title}
+                                      </span>
+                                    </div>
                                   )}
                                 </div>
+
+                                <div className="flex items-center gap-2.5 text-xs">
+                                  {lesson.isPreview && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-200/60">
+                                      Free Preview
+                                    </span>
+                                  )}
+                                  <span className="text-slate-400 font-medium">{lesson.duration || 10} min</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2.5 text-xs">
-                                <span className="text-slate-400 font-medium">
-                                  {quiz.questions?.length || 5} questions • {quiz.passingScore || 70}% to pass
-                                </span>
+                            );
+                          })}
+                          {courseQuizzes
+                            ?.filter((q) => q.moduleId === modId || (!q.moduleId && idx === (course.modules?.length || 1) - 1))
+                            .map((quiz) => (
+                              <div
+                                key={quiz.id}
+                                className="p-3.5 px-4 flex items-center justify-between bg-violet-50/40 hover:bg-violet-50/70 transition-colors"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <HelpCircle className="w-4 h-4 text-violet-600 shrink-0" />
+                                  <div>
+                                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                      {quiz.title}
+                                      <span className="text-[10px] uppercase font-bold text-violet-600 bg-violet-100/80 px-1.5 py-0.5 rounded">
+                                        Quiz
+                                      </span>
+                                    </span>
+                                    {quiz.description && (
+                                      <p className="text-[11px] text-slate-500 line-clamp-1">{quiz.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2.5 text-xs">
+                                  <span className="text-slate-400 font-medium">
+                                    {quiz.questions?.length || 5} questions • {quiz.passingScore || 70}% to pass
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
+                  <BookOpen className="w-8 h-8 text-slate-300 mx-auto" />
+                  <p className="text-sm font-bold text-slate-700">Course Syllabus Being Prepared</p>
+                  <p className="text-xs text-slate-400">
+                    Modules, video lectures, and assessments are currently being finalized by the instructor.
+                  </p>
+                </div>
+              )}
             </div>
           </section>
           {/* Student Reviews & Ratings */}
