@@ -20,6 +20,9 @@ public class Main {
             // 2b. Populate Rich Free Courses if Not Present
             com.eduflow.database.AddFreeCourses.seedFreeCourses();
 
+            // 2c. Ensure ALL courses have complete modules, lessons, assignments, and quizzes
+            com.eduflow.database.SeedAllCoursesContent.seedMissingContent();
+
             // 3. Start High-Performance HTTP REST Server on port 5000
             int port = 5000;
             LmsHttpServer server = new LmsHttpServer();

@@ -443,12 +443,22 @@ export default function CourseDetails() {
                 )}
 
                 {course.isEnrolled ? (
-                  <Link
-                    to={`/student/courses/${course._id || course.id}/learn`}
-                    className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-center block shadow-lg shadow-emerald-200 transition-all text-sm"
-                  >
-                    Continue Learning →
-                  </Link>
+                  <div className="space-y-3">
+                    <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800">
+                      <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="font-extrabold text-emerald-950 text-xs uppercase tracking-wider">Already Enrolled</p>
+                        <p className="text-[11px] text-emerald-700 font-medium">You have active full access to this course.</p>
+                      </div>
+                    </div>
+                    <Link
+                      to={`/student/courses/${course._id || course.id}/learn`}
+                      className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-center flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 transition-all text-sm"
+                    >
+                      <PlayCircle className="w-4 h-4" />
+                      Continue Learning →
+                    </Link>
+                  </div>
                 ) : (
                   <div className="space-y-2.5">
                     <button

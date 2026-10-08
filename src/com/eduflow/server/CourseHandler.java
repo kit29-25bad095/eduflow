@@ -80,6 +80,20 @@ public class CourseHandler implements HttpHandler {
         List<Course> courses = courseDAO.listCourses(search, category, level, sort, page, limit, status);
         int total = courseDAO.countCourses(search, category, level, status);
 
+        // Check enrollment for student if logged in
+        String token = ResponseUtil.getAuthToken(exchange);
+        if (token != null) {
+            JsonObject claims = JwtUtil.verifyToken(token);
+            if (claims != null && claims.has("id")) {
+                String studentId = claims.get("id").getAsString();
+                com.eduflow.dao.EnrollmentDAO enrollmentDAO = new com.eduflow.dao.EnrollmentDAO();
+                Set<String> enrolledIds = enrollmentDAO.getEnrolledCourseIds(studentId);
+                for (Course c : courses) {
+                    c.setEnrolled(enrolledIds.contains(c.getId()));
+                }
+            }
+        }
+
         Map<String, Object> pagination = new HashMap<>();
         pagination.put("page", page);
         pagination.put("limit", limit);
@@ -113,6 +127,18 @@ public class CourseHandler implements HttpHandler {
             ResponseUtil.sendError(exchange, 404, "Course not found", "COURSE_NOT_FOUND");
             return;
         }
+
+        // Check enrollment for student if logged in
+        String token = ResponseUtil.getAuthToken(exchange);
+        if (token != null) {
+            JsonObject claims = JwtUtil.verifyToken(token);
+            if (claims != null && claims.has("id")) {
+                String studentId = claims.get("id").getAsString();
+                com.eduflow.dao.EnrollmentDAO enrollmentDAO = new com.eduflow.dao.EnrollmentDAO();
+                course.setEnrolled(enrollmentDAO.isEnrolled(studentId, course.getId()));
+            }
+        }
+
         ResponseUtil.sendSuccess(exchange, 200, course, null);
     }
 
@@ -221,6 +247,14 @@ public class CourseHandler implements HttpHandler {
         List<Course> recommended = hasInterests
                 ? courseDAO.getRecommendedCoursesForStudent(studentId)
                 : Collections.emptyList();
+
+        if (!recommended.isEmpty()) {
+            com.eduflow.dao.EnrollmentDAO enrollmentDAO = new com.eduflow.dao.EnrollmentDAO();
+            Set<String> enrolledIds = enrollmentDAO.getEnrolledCourseIds(studentId);
+            for (Course c : recommended) {
+                c.setEnrolled(enrolledIds.contains(c.getId()));
+            }
+        }
 
         Map<String, Object> data = new HashMap<>();
         data.put("hasInterests", hasInterests);

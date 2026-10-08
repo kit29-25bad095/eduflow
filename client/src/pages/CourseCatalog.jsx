@@ -14,6 +14,7 @@ import {
   Sparkles,
   ArrowRight,
   Heart,
+  CheckCircle2,
 } from 'lucide-react';
 
 function CourseCard({ course, isRecommended = false, isWishlisted = false, onToggleWishlist }) {
@@ -38,6 +39,12 @@ function CourseCard({ course, isRecommended = false, isWishlisted = false, onTog
 
           {/* Top Left Badges */}
           <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+            {course.isEnrolled && (
+              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500 text-white shadow-md flex items-center gap-1 tracking-wide animate-in fade-in">
+                <CheckCircle2 className="w-2.5 h-2.5 text-white" />
+                ENROLLED
+              </span>
+            )}
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white text-slate-900 shadow-sm">
               {course.category}
             </span>
@@ -158,9 +165,16 @@ function CourseCard({ course, isRecommended = false, isWishlisted = false, onTog
             </span>
           )}
         </div>
-        <span className="text-indigo-600 group-hover:text-indigo-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-xs font-bold">
-          View Curriculum →
-        </span>
+        {course.isEnrolled ? (
+          <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 group-hover:bg-emerald-100 transition-colors">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            Enrolled • Learn →
+          </span>
+        ) : (
+          <span className="text-indigo-600 group-hover:text-indigo-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform text-xs font-bold">
+            View Curriculum →
+          </span>
+        )}
       </div>
     </Link>
   );

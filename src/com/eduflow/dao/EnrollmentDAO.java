@@ -29,6 +29,21 @@ public class EnrollmentDAO {
         }
     }
 
+    public java.util.Set<String> getEnrolledCourseIds(String studentId) throws SQLException {
+        String sql = "SELECT course_id FROM enrollments WHERE student_id = ?";
+        java.util.Set<String> set = new java.util.HashSet<>();
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, studentId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    set.add(rs.getString(1));
+                }
+            }
+        }
+        return set;
+    }
+
     public Enrollment enroll(String studentId, String courseId) throws SQLException {
         if (isEnrolled(studentId, courseId)) {
             throw new SQLException("ALREADY_ENROLLED");
